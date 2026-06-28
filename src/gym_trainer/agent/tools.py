@@ -14,6 +14,7 @@ from datetime import date as date_type, timedelta
 from typing import Any
 
 from gym_trainer.domain.plans import (
+    adapt_plan_from_feedback,
     build_functional_hypertrophy_plan,
     move_session_in_plan,
     next_free_day_after,
@@ -208,11 +209,13 @@ def log_workout_feedback(chat_id: str, feedback: dict[str, Any]) -> dict[str, An
     """Persist structured workout feedback."""
 
     feedback_id = save_workout_feedback(chat_id=chat_id, feedback=feedback)
+    adaptation = _adapt_active_plan_from_feedback(chat_id, feedback)
     return {
         "tool": "log_workout_feedback",
         "chat_id": chat_id,
         "feedback_id": feedback_id,
         "feedback": feedback,
+        "adaptation": adaptation,
     }
 
 
@@ -353,3 +356,30 @@ def _refresh_current_plan_view(chat_id: str) -> None:
 
 def _should_write_workspace_view() -> bool:
     return os.getenv("GYM_TRAINER_DB_PATH") is None
+
+
+def _adapt_active_plan_from_feedback(
+    chat_id: str,
+    feedback: dict[str, Any],
+) -> dict[str, Any] | None:
+    plan = load_active_weekly_plan(chat_id)
+    if plan is None:
+        return None
+
+    adaptation = adapt_plan_from_feedback(plan, feedback)
+    if adaptation is None:
+        return None
+
+    replace_plan_sessions(
+        chat_id=chat_id,
+        plan_id=plan["id"],
+        sessions=adaptation["sessions"],
+        change_type="auto_adapt_feedback",
+        instruction=feedback.get("source_message", feedback.get("notes", "")),
+        before=adaptation["before"],
+        after=adaptation["after"],
+    )
+    _refresh_current_plan_view(chat_id)
+    return {
+        "summary": adaptation["summary"],
+    }

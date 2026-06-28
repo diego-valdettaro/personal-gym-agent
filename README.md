@@ -46,6 +46,9 @@ python -m gym_trainer.main agent-test --chat-id demo --message "hice push pero n
 python -m gym_trainer.main agent-test --chat-id demo --message "2 hombro"
 ```
 
+Painful feedback can automatically adjust future plan guidance and records the
+change in `plan_change_log`.
+
 Move a planned session:
 
 ```bash

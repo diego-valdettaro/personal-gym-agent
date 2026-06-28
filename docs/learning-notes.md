@@ -273,3 +273,19 @@ The deterministic generator now adapts:
 This is still not LLM reasoning, but the plan is no longer a fixed template.
 The generator now consumes durable user memory through the same contract a
 future model-backed planner can use.
+
+## What Block 10 Adds
+
+Block 10 introduces automatic plan adaptation after feedback.
+
+When `log_workout_feedback` saves a record, it now checks whether the active
+plan should be adjusted. Current deterministic adaptations include:
+
+- shoulder pain at 3/10 or higher adds conservative pressing guidance to Push
+  and Upper sessions;
+- skipped exercises are flagged in the relevant session notes;
+- every automatic change is recorded in `plan_change_log` with
+  `change_type = auto_adapt_feedback`.
+
+The adaptation is intentionally conservative: it changes future guidance and
+exercise substitutions without attempting complex periodization.

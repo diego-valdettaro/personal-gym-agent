@@ -159,6 +159,22 @@ def test_graph_returns_real_scorecard(monkeypatch, tmp_path):
     assert "3/10 shoulder" in response
 
 
+def test_graph_auto_adapts_plan_after_pain_feedback(monkeypatch, tmp_path):
+    db_path = tmp_path / "auto_adapt_graph.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+    _seed_complete_profile("auto-adapt-graph")
+    run_agent_turn(chat_id="auto-adapt-graph", user_message="arma mi plan")
+
+    response = run_agent_turn(
+        chat_id="auto-adapt-graph",
+        user_message="hice push dolor 4 hombro",
+    )
+
+    assert "Ajuste el plan" in response
+    changes = list_plan_change_log("auto-adapt-graph")
+    assert changes[-1]["change_type"] == "auto_adapt_feedback"
+
+
 def test_graph_collects_profile_before_generating_plan(monkeypatch, tmp_path):
     db_path = tmp_path / "profile_graph.sqlite"
     monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))

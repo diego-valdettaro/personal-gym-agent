@@ -219,6 +219,60 @@ def normalize_day(day: str) -> str:
     return DAY_ALIASES[normalized]
 
 
+def adapt_plan_from_feedback(
+    plan: dict[str, Any],
+    feedback: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Return adapted sessions when feedback implies conservative changes."""
+
+    pain_level = feedback.get("pain_level")
+    pain_area = str(feedback.get("pain_area") or "").lower()
+    skipped = feedback.get("skipped_exercises", [])
+    if not skipped and (pain_level is None or pain_level < 3):
+        return None
+
+    sessions = [dict(session) for session in plan["sessions"]]
+    before_sessions = [dict(session) for session in sessions]
+    changes: list[str] = []
+
+    if pain_level is not None and pain_level >= 3 and pain_area == "shoulder":
+        for session in sessions:
+            if "Push" in session["name"] or "Upper" in session["name"]:
+                session["pain_modifications"] = (
+                    session.get("pain_modifications", "")
+                    + f" Auto-adjusted after shoulder pain {pain_level}/10: keep pressing pain-free, use neutral grips, and avoid vertical pressing."
+                ).strip()
+                session["exercises"] = [
+                    exercise.replace(
+                        "Landmine press 3x8/side",
+                        "Machine chest press 3x10 @ RPE 6",
+                    )
+                    for exercise in session["exercises"]
+                ]
+        changes.append("reduced shoulder-aggravating pressing")
+
+    if skipped:
+        target_name = str(feedback.get("session_name") or "")
+        for session in sessions:
+            if target_name and target_name in session["name"]:
+                session["notes"] = (
+                    session["notes"]
+                    + f" Review skipped work next time: {', '.join(skipped)}."
+                )
+                break
+        changes.append(f"flagged skipped exercises: {', '.join(skipped)}")
+
+    if sessions == before_sessions:
+        return None
+
+    return {
+        "sessions": sessions,
+        "before": {"sessions": before_sessions},
+        "after": {"sessions": sessions},
+        "summary": "; ".join(changes),
+    }
+
+
 def _apply_profile_to_sessions(
     sessions: list[dict[str, Any]],
     *,

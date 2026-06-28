@@ -1,4 +1,4 @@
-from gym_trainer.domain.plans import build_functional_hypertrophy_plan
+from gym_trainer.domain.plans import adapt_plan_from_feedback, build_functional_hypertrophy_plan
 
 
 def test_plan_generation_uses_profile_training_days_and_preferences():
@@ -40,3 +40,24 @@ def test_plan_generation_shortens_sessions_for_limited_duration():
 
     assert plan["training_days"] == 3
     assert all(len(session["exercises"]) <= 4 for session in plan["sessions"])
+
+
+def test_adapt_plan_from_shoulder_pain_feedback():
+    plan = build_functional_hypertrophy_plan("2026-06-29")
+
+    adaptation = adapt_plan_from_feedback(
+        plan,
+        {
+            "session_name": "Push",
+            "pain_level": 4,
+            "pain_area": "shoulder",
+            "skipped_exercises": ["press militar"],
+        },
+    )
+
+    assert adaptation is not None
+    assert "shoulder" in adaptation["summary"]
+    push_session = next(
+        session for session in adaptation["sessions"] if "Push" in session["name"]
+    )
+    assert "Review skipped work" in push_session["notes"]

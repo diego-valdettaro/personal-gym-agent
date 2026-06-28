@@ -405,6 +405,8 @@ def format_response(state: AgentState) -> dict[str, Any]:
             f"Guardado: {feedback.get('session_name') or 'entrenamiento'} "
             f"({feedback['status']}).{skipped_text}{pain_text}"
         )
+        if result.get("adaptation"):
+            response += f" Ajuste el plan: {result['adaptation']['summary']}."
     elif tool_name in ("move_session", "update_plan"):
         if result.get("status") == "not_applied":
             response = f"No hice cambios al plan. {result['notes']}"

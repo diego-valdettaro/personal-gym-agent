@@ -88,6 +88,41 @@ def test_log_workout_feedback_persists_record(monkeypatch, tmp_path):
     assert saved_feedback[0]["pain_level"] == 2
 
 
+def test_log_workout_feedback_auto_adapts_active_plan(monkeypatch, tmp_path):
+    db_path = tmp_path / "feedback_adapt.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+    update_user_profile(
+        chat_id="adapt-user",
+        updates={
+            "training_days": 5,
+            "session_duration_minutes": 75,
+            "preferred_training_days": ["monday", "tuesday", "thursday", "saturday", "sunday"],
+            "pain_areas": [],
+            "gym_access": "gym",
+        },
+    )
+    generate_weekly_plan(chat_id="adapt-user", week_start="2026-06-29")
+
+    result = log_workout_feedback(
+        chat_id="adapt-user",
+        feedback={
+            "session_name": "Push",
+            "workout_date": None,
+            "status": "partial",
+            "skipped_exercises": ["press militar"],
+            "pain_level": 4,
+            "pain_area": "shoulder",
+            "difficulty": "hard",
+            "notes": "hice push dolor 4 hombro",
+            "source_message": "hice push dolor 4 hombro",
+        },
+    )
+
+    assert result["adaptation"] is not None
+    changes = list_plan_change_log("adapt-user")
+    assert changes[-1]["change_type"] == "auto_adapt_feedback"
+
+
 def test_move_session_updates_active_plan_and_logs_change(monkeypatch, tmp_path):
     db_path = tmp_path / "move.sqlite"
     monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))

@@ -45,6 +45,15 @@ python -m gym_trainer.main agent-test --chat-id demo --message "2 hombro"
 Expected result: the first command asks for pain 0-10, and the second command
 saves a structured `workout_feedback` row.
 
+Log pain that should adapt the plan:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "hice push dolor 4 hombro"
+```
+
+Expected result: feedback is saved, future shoulder-sensitive sessions are
+adjusted, and `plan_change_log` records `auto_adapt_feedback`.
+
 Move a session:
 
 ```bash
@@ -79,6 +88,7 @@ The smoke tests verify that:
 - workout feedback can be logged through a two-turn pain follow-up.
 - plan sessions can be moved and audited in `plan_change_log`.
 - scorecards summarize persisted feedback instead of returning a mock.
+- pain feedback can trigger conservative automatic plan adaptation.
 
 ## Enable LangSmith Tracing
 
