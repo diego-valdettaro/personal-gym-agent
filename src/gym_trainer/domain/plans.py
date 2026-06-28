@@ -18,7 +18,12 @@ def week_start_for(workout_date: date) -> str:
     return monday.isoformat()
 
 
-def build_functional_hypertrophy_plan(week_start: str) -> dict[str, Any]:
+def build_functional_hypertrophy_plan(
+    week_start: str,
+    *,
+    profile: dict[str, Any] | None = None,
+    recent_feedback: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Build a practical shoulder-aware functional hypertrophy plan."""
 
     sessions = [
@@ -113,14 +118,17 @@ def build_functional_hypertrophy_plan(week_start: str) -> dict[str, Any]:
         },
     ]
 
+    sessions = _apply_profile_to_sessions(
+        sessions,
+        profile=profile or {},
+        recent_feedback=recent_feedback or [],
+    )
+
     return {
         "week_start": week_start,
         "training_days": len(sessions),
         "sessions": sessions,
-        "notes": (
-            "Generated from the functional hypertrophy coaching model: practical "
-            "volume, shoulder-aware pressing, frequent core work, and gradual progression."
-        ),
+        "notes": _generation_notes(profile or {}, recent_feedback or []),
     }
 
 
@@ -209,3 +217,96 @@ def normalize_day(day: str) -> str:
     if normalized not in DAY_ALIASES:
         raise ValueError(f"Unknown day: {day}")
     return DAY_ALIASES[normalized]
+
+
+def _apply_profile_to_sessions(
+    sessions: list[dict[str, Any]],
+    *,
+    profile: dict[str, Any],
+    recent_feedback: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    desired_days = profile.get("training_days")
+    if isinstance(desired_days, int) and desired_days > 0:
+        sessions = sessions[: min(desired_days, len(sessions))]
+
+    preferred_days = _normalize_preferred_days(profile.get("preferred_training_days", []))
+    if preferred_days:
+        sessions = _assign_preferred_days(sessions, preferred_days)
+
+    duration = profile.get("session_duration_minutes")
+    if isinstance(duration, int) and duration < 60:
+        sessions = [_shorten_session(session) for session in sessions]
+
+    pain_areas = {str(area).lower() for area in profile.get("pain_areas", [])}
+    recent_pain_areas = {
+        str(record.get("pain_area")).lower()
+        for record in recent_feedback
+        if record.get("pain_level") is not None and record["pain_level"] >= 3
+    }
+    if "shoulder" in pain_areas or "hombro" in pain_areas or "shoulder" in recent_pain_areas:
+        sessions = [_make_shoulder_conservative(session) for session in sessions]
+
+    return sessions
+
+
+def _normalize_preferred_days(days: list[str]) -> list[str]:
+    normalized_days = []
+    for day in days:
+        try:
+            normalized = normalize_day(str(day))
+        except ValueError:
+            continue
+        if normalized not in normalized_days:
+            normalized_days.append(normalized)
+    return normalized_days
+
+
+def _assign_preferred_days(
+    sessions: list[dict[str, Any]],
+    preferred_days: list[str],
+) -> list[dict[str, Any]]:
+    assigned = [dict(session) for session in sessions]
+    if len(preferred_days) < len(assigned):
+        return assigned
+    for session, day in zip(assigned, preferred_days):
+        session["day"] = day
+    assigned.sort(key=lambda session: DAY_ORDER.index(session["day"]))
+    return assigned
+
+
+def _shorten_session(session: dict[str, Any]) -> dict[str, Any]:
+    shortened = dict(session)
+    exercises = list(shortened["exercises"])
+    if len(exercises) > 4:
+        shortened["exercises"] = exercises[:4]
+        shortened["notes"] = (
+            shortened["notes"]
+            + " Kept shorter for the available session duration."
+        )
+    return shortened
+
+
+def _make_shoulder_conservative(session: dict[str, Any]) -> dict[str, Any]:
+    adjusted = dict(session)
+    adjusted["pain_modifications"] = (
+        adjusted.get("pain_modifications", "")
+        + " Keep shoulder pain under 3/10 and prefer neutral grips."
+    ).strip()
+    adjusted["exercises"] = [
+        exercise.replace("Landmine press 3x8/side", "Machine chest press 3x10 @ RPE 6")
+        for exercise in adjusted["exercises"]
+    ]
+    return adjusted
+
+
+def _generation_notes(profile: dict[str, Any], recent_feedback: list[dict[str, Any]]) -> str:
+    notes = [
+        "Generated from the functional hypertrophy coaching model.",
+        f"Training days target: {profile.get('training_days', 'default')}.",
+        f"Session duration target: {profile.get('session_duration_minutes', 'default')} minutes.",
+    ]
+    if profile.get("pain_areas"):
+        notes.append(f"Pain-aware areas: {', '.join(profile['pain_areas'])}.")
+    if recent_feedback:
+        notes.append(f"Recent feedback records considered: {len(recent_feedback)}.")
+    return " ".join(notes)

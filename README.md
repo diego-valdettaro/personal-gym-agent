@@ -36,6 +36,9 @@ and saves the answers in SQLite. The local profile view is written to
 `workspace/profile.md`, which is ignored by git because it can contain personal
 training data.
 
+Plan generation uses the saved profile to adjust training days, preferred days,
+session duration, and pain-sensitive substitutions.
+
 Log workout feedback:
 
 ```bash

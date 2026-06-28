@@ -24,6 +24,9 @@ Expected result: if profile data is missing, the agent asks intake questions
 one at a time. Once complete, it saves a 5-session weekly plan in SQLite and
 renders `workspace/current_plan.md`.
 
+If the saved profile says 4 training days, the generated plan should contain 4
+sessions and use the preferred training days when possible.
+
 Inspect the local profile view:
 
 ```bash

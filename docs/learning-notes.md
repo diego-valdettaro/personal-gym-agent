@@ -256,3 +256,20 @@ because it can contain personal data.
 
 This block makes plan generation less blind: it establishes the profile
 contract that the next plan generator version can use.
+
+## What Block 9 Adds
+
+Block 9 upgrades weekly plan generation to use saved profile data and recent
+feedback.
+
+The deterministic generator now adapts:
+
+- number of sessions from `training_days`;
+- scheduled days from `preferred_training_days`;
+- exercise count when `session_duration_minutes` is short;
+- shoulder-sensitive substitutions and notes from `pain_areas` or recent pain
+  feedback.
+
+This is still not LLM reasoning, but the plan is no longer a fixed template.
+The generator now consumes durable user memory through the same contract a
+future model-backed planner can use.

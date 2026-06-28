@@ -8,6 +8,7 @@ from the human-editable workspace file.
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import date as date_type, timedelta
 from typing import Any
@@ -42,14 +43,22 @@ def generate_weekly_plan(chat_id: str, week_start: str | None = None) -> dict[st
     """Generate, persist, and publish the current weekly training plan."""
 
     resolved_week_start = week_start or week_start_for(date_type.today())
-    plan = build_functional_hypertrophy_plan(resolved_week_start)
+    profile = merge_profile(load_user_profile(chat_id))
+    recent_feedback = list_workout_feedback(chat_id)
+    plan = build_functional_hypertrophy_plan(
+        resolved_week_start,
+        profile=profile,
+        recent_feedback=recent_feedback,
+    )
     plan_id = save_weekly_plan(
         chat_id=chat_id,
         week_start=plan["week_start"],
         sessions=plan["sessions"],
         notes=plan["notes"],
     )
-    write_current_plan_view(plan)
+    workspace_updated = _should_write_workspace_view()
+    if workspace_updated:
+        write_current_plan_view(plan)
 
     return {
         "tool": "generate_weekly_plan",
@@ -59,6 +68,7 @@ def generate_weekly_plan(chat_id: str, week_start: str | None = None) -> dict[st
         "training_days": plan["training_days"],
         "sessions": plan["sessions"],
         "notes": plan["notes"],
+        "workspace_updated": workspace_updated,
     }
 
 
@@ -335,5 +345,11 @@ def _active_plan_or_error(chat_id: str) -> dict[str, Any]:
 
 
 def _refresh_current_plan_view(chat_id: str) -> None:
+    if not _should_write_workspace_view():
+        return
     plan = _active_plan_or_error(chat_id)
     write_current_plan_view(plan)
+
+
+def _should_write_workspace_view() -> bool:
+    return os.getenv("GYM_TRAINER_DB_PATH") is None

@@ -363,7 +363,11 @@ def format_response(state: AgentState) -> dict[str, Any]:
             f"Listo. Genere un plan de {result['training_days']} sesiones "
             f"para la semana de {result['week_start']}:\n"
             f"{sessions}\n\n"
-            "Lo guarde en SQLite y actualice workspace/current_plan.md."
+            + (
+                "Lo guarde en SQLite y actualice workspace/current_plan.md."
+                if result.get("workspace_updated", True)
+                else "Lo guarde en SQLite."
+            )
         )
     elif tool_name == "get_today_workout":
         exercises = "\n".join(f"- {exercise}" for exercise in result["exercises"])
