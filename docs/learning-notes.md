@@ -194,3 +194,22 @@ The extractor is deterministic for now. It covers common MVP messages such as
 `hice push`, `no hice press militar`, `dolor 2 hombro`, and `estuvo pesado`.
 Later blocks can replace the extraction logic with LLM-backed reasoning while
 keeping the same `log_workout_feedback` tool contract.
+
+## What Block 6 Adds
+
+Block 6 introduces conservative plan modifications.
+
+The new tools are:
+
+- `move_session`: move one scheduled session from one day to a free day.
+- `update_plan`: apply a narrow explicit instruction such as `mañana no puedo entrenar`.
+
+Every applied change is recorded in:
+
+```text
+plan_change_log
+```
+
+The active plan remains structured in SQLite, and `workspace/current_plan.md`
+is refreshed after successful changes. The current safety rule is simple:
+the tool refuses to move a session onto an already occupied day.

@@ -33,6 +33,15 @@ python -m gym_trainer.main agent-test --chat-id demo --message "2 hombro"
 Expected result: the first command asks for pain 0-10, and the second command
 saves a structured `workout_feedback` row.
 
+Move a session:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "mueve martes a miercoles"
+```
+
+Expected result: the active SQLite plan changes, `workspace/current_plan.md`
+is refreshed, and a `plan_change_log` row is saved.
+
 ## Run Tests
 
 ```bash
@@ -47,6 +56,7 @@ The smoke tests verify that:
 - mock tools return expected structured data.
 - generated weekly plans are persisted as structured SQLite records.
 - workout feedback can be logged through a two-turn pain follow-up.
+- plan sessions can be moved and audited in `plan_change_log`.
 
 ## Enable LangSmith Tracing
 

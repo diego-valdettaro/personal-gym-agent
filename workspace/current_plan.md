@@ -16,7 +16,7 @@ Pain modifications: If shoulder pain is 3/10 or higher, use neutral-grip dumbbel
 Optional cardio: Optional 10-15 minutes easy incline walk.
 Notes: Keep 1-2 reps in reserve on pressing.
 
-## Tuesday: Pull - Back And Biceps
+## Wednesday: Pull - Back And Biceps
 Goal: Upper back strength, pulling volume, and elbow-friendly arm work.
 Warmup: Scapular pull-ups, light rows, and thoracic rotations.
 - Lat pulldown 3x8-10 @ RPE 7

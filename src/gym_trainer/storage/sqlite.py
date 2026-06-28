@@ -92,6 +92,18 @@ def initialize(connection: sqlite3.Connection) -> None:
             source_message TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS plan_change_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id TEXT NOT NULL,
+            plan_id INTEGER,
+            change_type TEXT NOT NULL,
+            instruction TEXT NOT NULL DEFAULT '',
+            before_json TEXT NOT NULL DEFAULT '{}',
+            after_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(plan_id) REFERENCES plans(id) ON DELETE SET NULL
+        );
         """
     )
 
@@ -332,6 +344,113 @@ def load_active_weekly_plan(chat_id: str) -> dict[str, Any] | None:
             for row in session_rows
         ],
     }
+
+
+def replace_plan_sessions(
+    *,
+    chat_id: str,
+    plan_id: int,
+    sessions: list[dict[str, Any]],
+    change_type: str,
+    instruction: str,
+    before: dict[str, Any],
+    after: dict[str, Any],
+) -> None:
+    """Replace sessions for an active plan and record a change log entry."""
+
+    timestamp = now_iso()
+    with connect() as connection:
+        row = connection.execute(
+            """
+            SELECT id FROM plans
+            WHERE id = ? AND chat_id = ? AND status = 'active'
+            """,
+            (plan_id, chat_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Active plan not found for chat_id.")
+
+        connection.execute("DELETE FROM plan_sessions WHERE plan_id = ?", (plan_id,))
+        for position, session in enumerate(sessions, start=1):
+            connection.execute(
+                """
+                INSERT INTO plan_sessions (
+                    plan_id, day, name, goal, warmup, exercises_json,
+                    rest_guidance, pain_modifications, optional_cardio, notes, position
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    plan_id,
+                    session["day"],
+                    session["name"],
+                    session["goal"],
+                    session["warmup"],
+                    json.dumps(session["exercises"]),
+                    session.get("rest_guidance", ""),
+                    session.get("pain_modifications", ""),
+                    session.get("optional_cardio", ""),
+                    session["notes"],
+                    position,
+                ),
+            )
+
+        connection.execute(
+            """
+            UPDATE plans
+            SET updated_at = ?
+            WHERE id = ?
+            """,
+            (timestamp, plan_id),
+        )
+        connection.execute(
+            """
+            INSERT INTO plan_change_log (
+                chat_id, plan_id, change_type, instruction, before_json,
+                after_json, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                chat_id,
+                plan_id,
+                change_type,
+                instruction,
+                json.dumps(before),
+                json.dumps(after),
+                timestamp,
+            ),
+        )
+
+
+def list_plan_change_log(chat_id: str) -> list[dict[str, Any]]:
+    """Return plan changes for a chat."""
+
+    with connect() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, chat_id, plan_id, change_type, instruction, before_json,
+                   after_json, created_at
+            FROM plan_change_log
+            WHERE chat_id = ?
+            ORDER BY created_at ASC, id ASC
+            """,
+            (chat_id,),
+        ).fetchall()
+
+    return [
+        {
+            "id": row["id"],
+            "chat_id": row["chat_id"],
+            "plan_id": row["plan_id"],
+            "change_type": row["change_type"],
+            "instruction": row["instruction"],
+            "before": json.loads(row["before_json"]),
+            "after": json.loads(row["after_json"]),
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
 
 
 def save_workout_feedback(*, chat_id: str, feedback: dict[str, Any]) -> int:

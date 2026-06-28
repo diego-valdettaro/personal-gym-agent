@@ -38,6 +38,12 @@ python -m gym_trainer.main agent-test --chat-id demo --message "hice push pero n
 python -m gym_trainer.main agent-test --chat-id demo --message "2 hombro"
 ```
 
+Move a planned session:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "mueve martes a miercoles"
+```
+
 If the project has not been installed in editable mode yet, run the sandbox from
 the repo with:
 

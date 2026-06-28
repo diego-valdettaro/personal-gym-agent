@@ -8,12 +8,20 @@ from the human-editable workspace file.
 
 from __future__ import annotations
 
-from datetime import date as date_type
+import re
+from datetime import date as date_type, timedelta
 from typing import Any
 
-from gym_trainer.domain.plans import build_functional_hypertrophy_plan, week_start_for
+from gym_trainer.domain.plans import (
+    build_functional_hypertrophy_plan,
+    move_session_in_plan,
+    next_free_day_after,
+    normalize_day,
+    week_start_for,
+)
 from gym_trainer.storage.sqlite import (
     load_active_weekly_plan,
+    replace_plan_sessions,
     save_weekly_plan,
     save_workout_feedback,
 )
@@ -166,6 +174,87 @@ def log_workout_feedback(chat_id: str, feedback: dict[str, Any]) -> dict[str, An
     }
 
 
+def move_session(chat_id: str, from_day: str, to_day: str) -> dict[str, Any]:
+    """Move a scheduled session to a free day in the active plan."""
+
+    plan = _active_plan_or_error(chat_id)
+    moved_plan = move_session_in_plan(plan, from_day=from_day, to_day=to_day)
+    replace_plan_sessions(
+        chat_id=chat_id,
+        plan_id=plan["id"],
+        sessions=moved_plan["sessions"],
+        change_type="move_session",
+        instruction=f"move {from_day} to {to_day}",
+        before=moved_plan["change"]["before"],
+        after=moved_plan["change"]["after"],
+    )
+    _refresh_current_plan_view(chat_id)
+    return {
+        "tool": "move_session",
+        "chat_id": chat_id,
+        "from_day": normalize_day(from_day),
+        "to_day": normalize_day(to_day),
+        "session_name": moved_plan["change"]["after"]["name"],
+        "change": moved_plan["change"],
+    }
+
+
+def update_plan(
+    chat_id: str,
+    instruction: str,
+    today: str | None = None,
+) -> dict[str, Any]:
+    """Apply a conservative explicit plan update."""
+
+    plan = _active_plan_or_error(chat_id)
+    normalized_instruction = instruction.lower()
+    resolved_today = date_type.fromisoformat(today) if today else date_type.today()
+
+    explicit_move = re.search(
+        r"(?:mueve|move)\s+(\w+)\s+(?:a|to|para)\s+(\w+)",
+        normalized_instruction,
+    )
+    if explicit_move:
+        return move_session(
+            chat_id=chat_id,
+            from_day=explicit_move.group(1),
+            to_day=explicit_move.group(2),
+        )
+
+    if "mañana" in normalized_instruction or "manana" in normalized_instruction:
+        tomorrow = (resolved_today + timedelta(days=1)).strftime("%A")
+        target_day = next_free_day_after(plan, tomorrow)
+        moved_plan = move_session_in_plan(plan, from_day=tomorrow, to_day=target_day)
+        replace_plan_sessions(
+            chat_id=chat_id,
+            plan_id=plan["id"],
+            sessions=moved_plan["sessions"],
+            change_type="update_plan",
+            instruction=instruction,
+            before=moved_plan["change"]["before"],
+            after=moved_plan["change"]["after"],
+        )
+        _refresh_current_plan_view(chat_id)
+        return {
+            "tool": "update_plan",
+            "chat_id": chat_id,
+            "instruction": instruction,
+            "session_name": moved_plan["change"]["after"]["name"],
+            "from_day": tomorrow,
+            "to_day": target_day,
+            "change": moved_plan["change"],
+            "notes": "Moved tomorrow's session to the next free day.",
+        }
+
+    return {
+        "tool": "update_plan",
+        "chat_id": chat_id,
+        "instruction": instruction,
+        "status": "not_applied",
+        "notes": "Only explicit day moves and 'mañana no puedo entrenar' are supported in this MVP.",
+    }
+
+
 def generate_scorecard(chat_id: str, week_start: str | None = None) -> dict[str, Any]:
     """Return a fake scorecard for smoke testing the tool path."""
 
@@ -184,6 +273,8 @@ MOCK_TOOLS = {
     "get_today_workout": get_today_workout,
     "get_week_plan": get_week_plan,
     "log_workout_feedback": log_workout_feedback,
+    "move_session": move_session,
+    "update_plan": update_plan,
     "generate_scorecard": generate_scorecard,
 }
 
@@ -196,3 +287,15 @@ def _find_session_dict_for_date(
         if session["day"].lower() == weekday.lower():
             return session
     return None
+
+
+def _active_plan_or_error(chat_id: str) -> dict[str, Any]:
+    plan = load_active_weekly_plan(chat_id)
+    if plan is None:
+        raise ValueError("No active weekly plan found. Generate a plan first.")
+    return plan
+
+
+def _refresh_current_plan_view(chat_id: str) -> None:
+    plan = _active_plan_or_error(chat_id)
+    write_current_plan_view(plan)

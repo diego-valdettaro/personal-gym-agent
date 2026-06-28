@@ -122,3 +122,90 @@ def build_functional_hypertrophy_plan(week_start: str) -> dict[str, Any]:
             "volume, shoulder-aware pressing, frequent core work, and gradual progression."
         ),
     }
+
+
+DAY_ALIASES = {
+    "lunes": "Monday",
+    "monday": "Monday",
+    "martes": "Tuesday",
+    "tuesday": "Tuesday",
+    "miercoles": "Wednesday",
+    "miércoles": "Wednesday",
+    "wednesday": "Wednesday",
+    "jueves": "Thursday",
+    "thursday": "Thursday",
+    "viernes": "Friday",
+    "friday": "Friday",
+    "sabado": "Saturday",
+    "sábado": "Saturday",
+    "saturday": "Saturday",
+    "domingo": "Sunday",
+    "sunday": "Sunday",
+}
+
+DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def move_session_in_plan(
+    plan: dict[str, Any],
+    *,
+    from_day: str,
+    to_day: str,
+) -> dict[str, Any]:
+    """Return a copied plan with one session moved to another day."""
+
+    normalized_from = normalize_day(from_day)
+    normalized_to = normalize_day(to_day)
+    sessions = [dict(session) for session in plan["sessions"]]
+
+    moving_session = None
+    for session in sessions:
+        if session["day"] == normalized_from:
+            moving_session = session
+            break
+
+    if moving_session is None:
+        raise ValueError(f"No session is scheduled on {normalized_from}.")
+
+    occupied_days = {
+        session["day"]
+        for session in sessions
+        if session is not moving_session
+    }
+    if normalized_to in occupied_days:
+        raise ValueError(f"{normalized_to} already has a scheduled session.")
+
+    before = dict(moving_session)
+    moving_session["day"] = normalized_to
+    sessions.sort(key=lambda session: DAY_ORDER.index(session["day"]))
+    after = dict(moving_session)
+
+    return {
+        **plan,
+        "sessions": sessions,
+        "change": {
+            "type": "move_session",
+            "before": before,
+            "after": after,
+        },
+    }
+
+
+def next_free_day_after(plan: dict[str, Any], day: str) -> str:
+    """Find the next free day after a given day in the same week."""
+
+    normalized_day = normalize_day(day)
+    occupied = {session["day"] for session in plan["sessions"]}
+    start_index = DAY_ORDER.index(normalized_day)
+    for offset in range(1, len(DAY_ORDER)):
+        candidate = DAY_ORDER[(start_index + offset) % len(DAY_ORDER)]
+        if candidate not in occupied:
+            return candidate
+    raise ValueError("No free day is available in the current weekly plan.")
+
+
+def normalize_day(day: str) -> str:
+    normalized = day.strip().lower()
+    if normalized not in DAY_ALIASES:
+        raise ValueError(f"Unknown day: {day}")
+    return DAY_ALIASES[normalized]

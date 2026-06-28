@@ -4,8 +4,14 @@ from gym_trainer.agent.tools import (
     get_today_workout,
     get_week_plan,
     log_workout_feedback,
+    move_session,
+    update_plan,
 )
-from gym_trainer.storage.sqlite import load_active_weekly_plan, list_workout_feedback
+from gym_trainer.storage.sqlite import (
+    list_plan_change_log,
+    load_active_weekly_plan,
+    list_workout_feedback,
+)
 
 
 def test_get_today_workout_reads_current_plan_file(monkeypatch, tmp_path):
@@ -77,3 +83,44 @@ def test_log_workout_feedback_persists_record(monkeypatch, tmp_path):
     assert saved_feedback[0]["session_name"] == "Push"
     assert saved_feedback[0]["skipped_exercises"] == ["press militar"]
     assert saved_feedback[0]["pain_level"] == 2
+
+
+def test_move_session_updates_active_plan_and_logs_change(monkeypatch, tmp_path):
+    db_path = tmp_path / "move.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+    generate_weekly_plan(chat_id="move-user", week_start="2026-06-08")
+
+    result = move_session("move-user", from_day="Tuesday", to_day="Wednesday")
+
+    assert result["tool"] == "move_session"
+    assert result["from_day"] == "Tuesday"
+    assert result["to_day"] == "Wednesday"
+
+    saved_plan = load_active_weekly_plan("move-user")
+    assert saved_plan is not None
+    assert any(
+        session["day"] == "Wednesday" and "Pull" in session["name"]
+        for session in saved_plan["sessions"]
+    )
+    changes = list_plan_change_log("move-user")
+    assert len(changes) == 1
+    assert changes[0]["change_type"] == "move_session"
+
+
+def test_update_plan_moves_tomorrow_session_to_next_free_day(monkeypatch, tmp_path):
+    db_path = tmp_path / "update.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+    generate_weekly_plan(chat_id="update-user", week_start="2026-06-08")
+
+    result = update_plan(
+        chat_id="update-user",
+        instruction="mañana no puedo entrenar",
+        today="2026-06-08",
+    )
+
+    assert result["tool"] == "update_plan"
+    assert result["from_day"] == "Tuesday"
+    assert result["to_day"] == "Wednesday"
+    changes = list_plan_change_log("update-user")
+    assert len(changes) == 1
+    assert changes[0]["instruction"] == "mañana no puedo entrenar"

@@ -164,7 +164,9 @@ def agent(state: AgentState) -> dict[str, Any]:
             ],
         }
 
-    if any(term in message for term in ("arma", "genera", "crear", "nuevo plan")):
+    if any(term in message for term in ("mueve", "move", "no puedo entrenar")):
+        tool_name = "update_plan"
+    elif any(term in message for term in ("arma", "genera", "crear", "nuevo plan")):
         tool_name = "generate_weekly_plan"
     elif any(term in message for term in ("score", "scorecard", "como voy")):
         tool_name = "generate_scorecard"
@@ -181,6 +183,9 @@ def agent(state: AgentState) -> dict[str, Any]:
         args["date"] = today
     elif tool_name in ("get_week_plan", "generate_scorecard"):
         args["week_start"] = today
+    elif tool_name == "update_plan":
+        args["instruction"] = state["user_message"]
+        args["today"] = today
 
     return {
         "tool_calls": [
@@ -290,6 +295,14 @@ def format_response(state: AgentState) -> dict[str, Any]:
             f"Guardado: {feedback.get('session_name') or 'entrenamiento'} "
             f"({feedback['status']}).{skipped_text}{pain_text}"
         )
+    elif tool_name in ("move_session", "update_plan"):
+        if result.get("status") == "not_applied":
+            response = f"No hice cambios al plan. {result['notes']}"
+        else:
+            response = (
+                f"Listo. Movi {result['session_name']} de "
+                f"{result['from_day']} a {result['to_day']}."
+            )
     else:
         response = (
             f"Scorecard mock: {result['adherence']}. "

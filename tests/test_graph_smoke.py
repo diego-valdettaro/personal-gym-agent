@@ -3,6 +3,7 @@ from pathlib import Path
 from gym_trainer.agent.graph import build_graph, run_agent_turn
 from gym_trainer.storage.sqlite import (
     list_workout_feedback,
+    list_plan_change_log,
     load_chat_state,
     load_pending_action,
 )
@@ -114,3 +115,19 @@ def test_graph_asks_pain_followup_before_logging_feedback(monkeypatch, tmp_path)
     saved_feedback = list_workout_feedback("feedback-followup")
     assert len(saved_feedback) == 1
     assert saved_feedback[0]["skipped_exercises"] == ["press militar"]
+
+
+def test_graph_can_move_plan_session(monkeypatch, tmp_path):
+    db_path = tmp_path / "move_graph.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+
+    run_agent_turn(chat_id="move-graph", user_message="arma mi plan")
+    response = run_agent_turn(
+        chat_id="move-graph",
+        user_message="mueve martes a miercoles",
+    )
+
+    assert "Movi Pull - Back And Biceps de Tuesday a Wednesday" in response
+    changes = list_plan_change_log("move-graph")
+    assert len(changes) == 1
+    assert changes[0]["change_type"] == "move_session"
