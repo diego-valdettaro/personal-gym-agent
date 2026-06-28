@@ -19,12 +19,18 @@ from gym_trainer.domain.feedback import (
     extract_workout_feedback,
     looks_like_workout_feedback,
 )
+from gym_trainer.domain.profile import (
+    merge_profile,
+    missing_required_profile_fields,
+    parse_profile_answer,
+)
 from gym_trainer.agent.state import AgentState
 from gym_trainer.agent.tools import MOCK_TOOLS
 from gym_trainer.storage.sqlite import (
     clear_pending_action,
     load_chat_state,
     load_pending_action,
+    load_user_profile,
     save_chat_state,
     save_pending_action,
 )
@@ -77,6 +83,60 @@ def agent(state: AgentState) -> dict[str, Any]:
 
     if state["pending_action"] is not None:
         pending_action = state["pending_action"]
+        if pending_action["action_type"] == "profile_intake":
+            field = pending_action["payload"]["field"]
+            parsed_value = parse_profile_answer(field, state["user_message"])
+            profile = merge_profile(load_user_profile(state["chat_id"]))
+            profile[field] = parsed_value
+            missing = missing_required_profile_fields(profile)
+            if missing:
+                next_field = missing[0]
+                return {
+                    "pending_intent": "profile_intake",
+                    "pending_fields": {"missing": next_field["name"]},
+                    "pending_action": {
+                        "action_type": "profile_intake",
+                        "prompt": next_field["prompt"],
+                        "payload": {
+                            "field": next_field["name"],
+                            "reason": pending_action["payload"].get("reason"),
+                        },
+                    },
+                    "tool_calls": [
+                        {
+                            "name": "update_user_profile",
+                            "args": {
+                                "chat_id": state["chat_id"],
+                                "updates": {field: parsed_value},
+                            },
+                        }
+                    ],
+                    "response": next_field["prompt"],
+                }
+
+            tool_calls = [
+                {
+                    "name": "update_user_profile",
+                    "args": {
+                        "chat_id": state["chat_id"],
+                        "updates": {field: parsed_value},
+                    },
+                }
+            ]
+            if pending_action["payload"].get("reason") == "generate_plan":
+                tool_calls.append(
+                    {
+                        "name": "generate_weekly_plan",
+                        "args": {"chat_id": state["chat_id"]},
+                    }
+                )
+            return {
+                "pending_intent": None,
+                "pending_fields": {},
+                "clear_pending_action": True,
+                "tool_calls": tool_calls,
+            }
+
         if pending_action["action_type"] == "feedback_pain_followup":
             feedback = {
                 **pending_action["payload"]["feedback"],
@@ -120,16 +180,27 @@ def agent(state: AgentState) -> dict[str, Any]:
         }
 
     if any(term in message for term in ("perfil", "profile", "datos")):
-        prompt = "¿Cuántos días puedes entrenar por semana?"
+        profile = merge_profile(load_user_profile(state["chat_id"]))
+        missing = missing_required_profile_fields(profile)
+        if not missing:
+            return {
+                "tool_calls": [
+                    {
+                        "name": "get_user_profile",
+                        "args": {"chat_id": state["chat_id"]},
+                    }
+                ]
+            }
+        first_missing = missing[0]
         return {
-            "pending_intent": "profile_setup",
-            "pending_fields": {"missing": "training_days"},
+            "pending_intent": "profile_intake",
+            "pending_fields": {"missing": first_missing["name"]},
             "pending_action": {
-                "action_type": "ask_followup",
-                "prompt": prompt,
-                "payload": {"field": "training_days"},
+                "action_type": "profile_intake",
+                "prompt": first_missing["prompt"],
+                "payload": {"field": first_missing["name"], "reason": "profile"},
             },
-            "response": prompt,
+            "response": first_missing["prompt"],
         }
 
     if looks_like_workout_feedback(state["user_message"]):
@@ -164,10 +235,30 @@ def agent(state: AgentState) -> dict[str, Any]:
             ],
         }
 
-    if any(term in message for term in ("mueve", "move", "no puedo entrenar")):
-        tool_name = "update_plan"
-    elif any(term in message for term in ("arma", "genera", "crear", "nuevo plan")):
+    if any(term in message for term in ("arma", "genera", "crear", "nuevo plan")):
+        profile = merge_profile(load_user_profile(state["chat_id"]))
+        missing = missing_required_profile_fields(profile)
+        if missing:
+            first_missing = missing[0]
+            return {
+                "pending_intent": "profile_intake",
+                "pending_fields": {"missing": first_missing["name"]},
+                "pending_action": {
+                    "action_type": "profile_intake",
+                    "prompt": first_missing["prompt"],
+                    "payload": {
+                        "field": first_missing["name"],
+                        "reason": "generate_plan",
+                    },
+                },
+                "response": (
+                    "Antes de armar el plan necesito completar tu perfil. "
+                    f"{first_missing['prompt']}"
+                ),
+            }
         tool_name = "generate_weekly_plan"
+    elif any(term in message for term in ("mueve", "move", "no puedo entrenar")):
+        tool_name = "update_plan"
     elif any(term in message for term in ("score", "scorecard", "como voy")):
         tool_name = "generate_scorecard"
     elif any(term in message for term in ("today", "hoy", "toca")):
@@ -246,9 +337,24 @@ def format_response(state: AgentState) -> dict[str, Any]:
         return {"response": "No pude preparar una respuesta con las herramientas."}
 
     result = state["tool_results"][0]
+    if result["tool"] == "update_user_profile" and state["response"]:
+        return {}
+    if (
+        result["tool"] == "update_user_profile"
+        and len(state["tool_results"]) > 1
+    ):
+        result = state["tool_results"][1]
     tool_name = result["tool"]
 
-    if tool_name == "generate_weekly_plan":
+    if tool_name == "update_user_profile":
+        updated = ", ".join(result["updates"].keys())
+        response = f"Perfil actualizado: {updated}."
+    elif tool_name == "get_user_profile":
+        profile_lines = "\n".join(
+            f"- {key}: {value}" for key, value in sorted(result["profile"].items())
+        )
+        response = f"Perfil actual:\n{profile_lines}"
+    elif tool_name == "generate_weekly_plan":
         sessions = "\n".join(
             f"- {session['day']}: {session['name']}"
             for session in result["sessions"]

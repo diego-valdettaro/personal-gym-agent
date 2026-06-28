@@ -5,10 +5,12 @@ from gym_trainer.agent.tools import (
     get_week_plan,
     log_workout_feedback,
     move_session,
+    update_user_profile,
     update_plan,
 )
 from gym_trainer.storage.sqlite import (
     list_plan_change_log,
+    load_user_profile,
     load_active_weekly_plan,
     list_workout_feedback,
 )
@@ -125,3 +127,18 @@ def test_update_plan_moves_tomorrow_session_to_next_free_day(monkeypatch, tmp_pa
     changes = list_plan_change_log("update-user")
     assert len(changes) == 1
     assert changes[0]["instruction"] == "mañana no puedo entrenar"
+
+
+def test_update_user_profile_persists_profile(monkeypatch, tmp_path):
+    db_path = tmp_path / "profile.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+
+    result = update_user_profile(
+        chat_id="profile-user",
+        updates={"training_days": 4, "gym_access": "gym"},
+    )
+
+    assert result["tool"] == "update_user_profile"
+    saved_profile = load_user_profile("profile-user")
+    assert saved_profile["training_days"] == 4
+    assert saved_profile["gym_access"] == "gym"

@@ -31,6 +31,11 @@ Generate a fresh weekly plan:
 python -m gym_trainer.main agent-test --chat-id demo --message "arma mi plan"
 ```
 
+If the profile is incomplete, the agent asks the minimum intake questions first
+and saves the answers in SQLite. The local profile view is written to
+`workspace/profile.md`, which is ignored by git because it can contain personal
+training data.
+
 Log workout feedback:
 
 ```bash

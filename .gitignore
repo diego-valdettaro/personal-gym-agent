@@ -11,3 +11,4 @@ venv/
 .env
 data/*.sqlite*
 logs/*.log
+workspace/profile.md

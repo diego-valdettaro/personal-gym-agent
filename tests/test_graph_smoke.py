@@ -1,11 +1,13 @@
 from pathlib import Path
 
 from gym_trainer.agent.graph import build_graph, run_agent_turn
+from gym_trainer.agent.tools import update_user_profile
 from gym_trainer.storage.sqlite import (
     list_workout_feedback,
     list_plan_change_log,
     load_chat_state,
     load_pending_action,
+    load_user_profile,
 )
 
 
@@ -39,6 +41,7 @@ def test_core_graph_can_return_scorecard():
 def test_core_graph_can_generate_weekly_plan(monkeypatch, tmp_path):
     db_path = tmp_path / "graph_plan.sqlite"
     monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+    _seed_complete_profile("plan-graph")
 
     response = run_agent_turn(chat_id="plan-graph", user_message="arma mi plan")
 
@@ -58,14 +61,16 @@ def test_graph_persists_pending_action_between_turns(monkeypatch):
         user_message="quiero actualizar mi perfil",
     )
 
-    assert "Cuántos días" in first_response
+    assert "Cuantos dias" in first_response
     assert load_pending_action("persist-test")["payload"]["field"] == "training_days"
 
     second_response = run_agent_turn(chat_id="persist-test", user_message="4")
 
-    assert "training_days = 4" in second_response
-    assert load_pending_action("persist-test") is None
-    assert load_chat_state("persist-test")["pending_fields"]["training_days"] == "4"
+    assert "Cuantos minutos" in second_response
+    assert load_pending_action("persist-test")["payload"]["field"] == (
+        "session_duration_minutes"
+    )
+    assert load_user_profile("persist-test")["training_days"] == 4
 
     db_path.unlink()
 
@@ -120,6 +125,7 @@ def test_graph_asks_pain_followup_before_logging_feedback(monkeypatch, tmp_path)
 def test_graph_can_move_plan_session(monkeypatch, tmp_path):
     db_path = tmp_path / "move_graph.sqlite"
     monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+    _seed_complete_profile("move-graph")
 
     run_agent_turn(chat_id="move-graph", user_message="arma mi plan")
     response = run_agent_turn(
@@ -136,6 +142,7 @@ def test_graph_can_move_plan_session(monkeypatch, tmp_path):
 def test_graph_returns_real_scorecard(monkeypatch, tmp_path):
     db_path = tmp_path / "scorecard_graph.sqlite"
     monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+    _seed_complete_profile("scorecard-graph")
 
     run_agent_turn(chat_id="scorecard-graph", user_message="arma mi plan")
     run_agent_turn(
@@ -150,3 +157,46 @@ def test_graph_returns_real_scorecard(monkeypatch, tmp_path):
     assert "Adherencia: 20%" in response
     assert "press militar" in response
     assert "3/10 shoulder" in response
+
+
+def test_graph_collects_profile_before_generating_plan(monkeypatch, tmp_path):
+    db_path = tmp_path / "profile_graph.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+
+    first_response = run_agent_turn(
+        chat_id="profile-graph",
+        user_message="arma mi plan",
+    )
+    assert "completar tu perfil" in first_response
+    assert "Cuantos dias" in first_response
+
+    assert "minutos" in run_agent_turn("profile-graph", "4")
+    assert "Que dias prefieres" in run_agent_turn("profile-graph", "75")
+    assert "dolor" in run_agent_turn("profile-graph", "lunes, martes, jueves, sabado")
+    assert "gimnasio" in run_agent_turn("profile-graph", "hombro")
+    final_response = run_agent_turn("profile-graph", "gimnasio completo")
+
+    assert "Genere un plan" in final_response
+    profile = load_user_profile("profile-graph")
+    assert profile["training_days"] == 4
+    assert profile["session_duration_minutes"] == 75
+    assert profile["pain_areas"] == ["hombro"]
+
+
+def _seed_complete_profile(chat_id: str) -> None:
+    update_user_profile(
+        chat_id=chat_id,
+        updates={
+            "training_days": 5,
+            "session_duration_minutes": 75,
+            "preferred_training_days": [
+                "monday",
+                "tuesday",
+                "thursday",
+                "saturday",
+                "sunday",
+            ],
+            "pain_areas": ["shoulder"],
+            "gym_access": "gym",
+        },
+    )

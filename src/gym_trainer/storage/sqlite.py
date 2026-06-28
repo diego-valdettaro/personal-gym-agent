@@ -51,6 +51,13 @@ def initialize(connection: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS user_profiles (
+            chat_id TEXT PRIMARY KEY,
+            profile_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS plans (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id TEXT NOT NULL,
@@ -230,6 +237,41 @@ def save_pending_action(
 def clear_pending_action(chat_id: str) -> None:
     with connect() as connection:
         connection.execute("DELETE FROM pending_actions WHERE chat_id = ?", (chat_id,))
+
+
+def load_user_profile(chat_id: str) -> dict[str, Any]:
+    """Load saved user profile data."""
+
+    with connect() as connection:
+        row = connection.execute(
+            """
+            SELECT profile_json
+            FROM user_profiles
+            WHERE chat_id = ?
+            """,
+            (chat_id,),
+        ).fetchone()
+
+    if row is None:
+        return {}
+    return json.loads(row["profile_json"])
+
+
+def save_user_profile(chat_id: str, profile: dict[str, Any]) -> None:
+    """Persist the complete user profile document for one chat."""
+
+    timestamp = now_iso()
+    with connect() as connection:
+        connection.execute(
+            """
+            INSERT INTO user_profiles (chat_id, profile_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(chat_id) DO UPDATE SET
+                profile_json = excluded.profile_json,
+                updated_at = excluded.updated_at
+            """,
+            (chat_id, json.dumps(profile), timestamp, timestamp),
+        )
 
 
 def save_weekly_plan(

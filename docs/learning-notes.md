@@ -235,3 +235,24 @@ It calculates:
 
 This is still a simple scorecard, but it is now grounded in persisted data
 instead of a canned response.
+
+## What Block 8 Adds
+
+Block 8 introduces profile intake and durable user profile memory.
+
+Before generating a plan, the graph now checks whether the required profile
+fields exist:
+
+- training days per week;
+- session duration;
+- preferred training days;
+- pain or sensitive areas;
+- gym access.
+
+If something is missing, the graph asks one question at a time and stores each
+answer in SQLite through `update_user_profile`. The profile also gets rendered
+to `workspace/profile.md` for local inspection, but that file is gitignored
+because it can contain personal data.
+
+This block makes plan generation less blind: it establishes the profile
+contract that the next plan generator version can use.

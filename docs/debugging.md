@@ -20,8 +20,17 @@ Generate a fresh persisted plan:
 python -m gym_trainer.main agent-test --chat-id demo --message "arma mi plan"
 ```
 
-Expected result: a 5-session weekly plan saved in SQLite and rendered to
-`workspace/current_plan.md`.
+Expected result: if profile data is missing, the agent asks intake questions
+one at a time. Once complete, it saves a 5-session weekly plan in SQLite and
+renders `workspace/current_plan.md`.
+
+Inspect the local profile view:
+
+```bash
+type workspace\profile.md
+```
+
+`workspace/profile.md` is ignored by git because it can contain personal data.
 
 Log a partial workout with a follow-up:
 

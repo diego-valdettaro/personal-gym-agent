@@ -19,11 +19,14 @@ from gym_trainer.domain.plans import (
     normalize_day,
     week_start_for,
 )
+from gym_trainer.domain.profile import merge_profile
 from gym_trainer.domain.scorecard import build_scorecard
 from gym_trainer.storage.sqlite import (
     list_workout_feedback,
     load_active_weekly_plan,
+    load_user_profile,
     replace_plan_sessions,
+    save_user_profile,
     save_weekly_plan,
     save_workout_feedback,
 )
@@ -32,6 +35,7 @@ from gym_trainer.workspace.plans import (
     load_current_plan,
     write_current_plan_view,
 )
+from gym_trainer.workspace.profile import write_profile_view
 
 
 def generate_weekly_plan(chat_id: str, week_start: str | None = None) -> dict[str, Any]:
@@ -55,6 +59,32 @@ def generate_weekly_plan(chat_id: str, week_start: str | None = None) -> dict[st
         "training_days": plan["training_days"],
         "sessions": plan["sessions"],
         "notes": plan["notes"],
+    }
+
+
+def get_user_profile(chat_id: str) -> dict[str, Any]:
+    """Return saved user profile plus default coaching assumptions."""
+
+    profile = merge_profile(load_user_profile(chat_id))
+    return {
+        "tool": "get_user_profile",
+        "chat_id": chat_id,
+        "profile": profile,
+    }
+
+
+def update_user_profile(chat_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+    """Merge updates into the durable profile and refresh the Markdown view."""
+
+    profile = merge_profile(load_user_profile(chat_id))
+    profile.update(updates)
+    save_user_profile(chat_id, profile)
+    write_profile_view(profile)
+    return {
+        "tool": "update_user_profile",
+        "chat_id": chat_id,
+        "profile": profile,
+        "updates": updates,
     }
 
 
@@ -276,6 +306,8 @@ def generate_scorecard(chat_id: str, week_start: str | None = None) -> dict[str,
 
 MOCK_TOOLS = {
     "generate_weekly_plan": generate_weekly_plan,
+    "get_user_profile": get_user_profile,
+    "update_user_profile": update_user_profile,
     "get_today_workout": get_today_workout,
     "get_week_plan": get_week_plan,
     "log_workout_feedback": log_workout_feedback,
