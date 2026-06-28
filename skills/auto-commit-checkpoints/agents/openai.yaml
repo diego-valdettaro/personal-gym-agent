@@ -1,0 +1,4 @@
+interface:
+  display_name: "Auto Commit Checkpoints"
+  short_description: "Commit safe checkpoints after major changes"
+  default_prompt: "Use $auto-commit-checkpoints to create a git checkpoint after the latest meaningful app change."
