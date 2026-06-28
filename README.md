@@ -44,6 +44,12 @@ Move a planned session:
 python -m gym_trainer.main agent-test --chat-id demo --message "mueve martes a miercoles"
 ```
 
+Generate a real scorecard from saved feedback:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "como voy esta semana?"
+```
+
 If the project has not been installed in editable mode yet, run the sandbox from
 the repo with:
 

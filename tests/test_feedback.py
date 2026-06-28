@@ -17,3 +17,12 @@ def test_extract_workout_feedback_with_pain_and_area():
     assert feedback["pain_level"] == 2
     assert feedback["pain_area"] == "shoulder"
     assert feedback["needs_pain_followup"] is False
+
+
+def test_extract_skipped_exercise_stops_before_pain_details():
+    feedback = extract_workout_feedback(
+        "hice push pero no hice press militar dolor 3 hombro"
+    )
+
+    assert feedback["skipped_exercises"] == ["press militar"]
+    assert feedback["pain_level"] == 3

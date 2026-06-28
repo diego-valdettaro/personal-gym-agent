@@ -32,8 +32,8 @@ def test_core_graph_can_return_week_plan():
 def test_core_graph_can_return_scorecard():
     response = run_agent_turn(chat_id="test-user", user_message="como voy esta semana?")
 
-    assert "Scorecard mock" in response
-    assert "2/3 sessions completed" in response
+    assert "Scorecard semanal" in response
+    assert "Adherencia" in response
 
 
 def test_core_graph_can_generate_weekly_plan(monkeypatch, tmp_path):
@@ -131,3 +131,22 @@ def test_graph_can_move_plan_session(monkeypatch, tmp_path):
     changes = list_plan_change_log("move-graph")
     assert len(changes) == 1
     assert changes[0]["change_type"] == "move_session"
+
+
+def test_graph_returns_real_scorecard(monkeypatch, tmp_path):
+    db_path = tmp_path / "scorecard_graph.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+
+    run_agent_turn(chat_id="scorecard-graph", user_message="arma mi plan")
+    run_agent_turn(
+        chat_id="scorecard-graph",
+        user_message="hice push pero no hice press militar dolor 3 hombro",
+    )
+    response = run_agent_turn(
+        chat_id="scorecard-graph",
+        user_message="como voy esta semana?",
+    )
+
+    assert "Adherencia: 20%" in response
+    assert "press militar" in response
+    assert "3/10 shoulder" in response

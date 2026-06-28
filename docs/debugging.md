@@ -42,6 +42,15 @@ python -m gym_trainer.main agent-test --chat-id demo --message "mueve martes a m
 Expected result: the active SQLite plan changes, `workspace/current_plan.md`
 is refreshed, and a `plan_change_log` row is saved.
 
+Generate a scorecard:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "como voy esta semana?"
+```
+
+Expected result: a scorecard calculated from the active plan and saved
+`workout_feedback` rows.
+
 ## Run Tests
 
 ```bash
@@ -57,6 +66,7 @@ The smoke tests verify that:
 - generated weekly plans are persisted as structured SQLite records.
 - workout feedback can be logged through a two-turn pain follow-up.
 - plan sessions can be moved and audited in `plan_change_log`.
+- scorecards summarize persisted feedback instead of returning a mock.
 
 ## Enable LangSmith Tracing
 
@@ -87,7 +97,7 @@ If the response is wrong, inspect the state handoff in this order:
 
 ## Current Limits
 
-There is no LLM-backed plan reasoning, Telegram integration, plan modification,
-or real scorecard calculation yet. Weekly plan generation and feedback
-extraction are currently deterministic so the storage and graph contracts stay
+There is no LLM-backed plan reasoning, Telegram integration, or advanced plan
+adaptation yet. Weekly plan generation, feedback extraction, plan updates, and
+scorecards are currently deterministic so the storage and graph contracts stay
 easy to review.

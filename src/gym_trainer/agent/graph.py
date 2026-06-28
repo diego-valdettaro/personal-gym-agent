@@ -304,9 +304,34 @@ def format_response(state: AgentState) -> dict[str, Any]:
                 f"{result['from_day']} a {result['to_day']}."
             )
     else:
+        skipped = result.get("skipped_exercises", [])
+        skipped_text = (
+            f"\nEjercicios omitidos: {', '.join(skipped)}"
+            if skipped
+            else ""
+        )
+        pain_flags = result.get("pain_flags", [])
+        pain_text = (
+            "\nDolor a vigilar: "
+            + ", ".join(
+                f"{flag['pain_level']}/10"
+                + (f" {flag['pain_area']}" if flag.get("pain_area") else "")
+                for flag in pain_flags
+            )
+            if pain_flags
+            else ""
+        )
+        suggestions = "\n".join(
+            f"- {suggestion}" for suggestion in result.get("suggestions", [])
+        )
         response = (
-            f"Scorecard mock: {result['adherence']}. "
-            f"{result['summary']}"
+            f"Scorecard semanal:\n"
+            f"Adherencia: {result['adherence_percent']}% "
+            f"({result['completed_or_partial_sessions']}/"
+            f"{result['planned_sessions']} sesiones).\n"
+            f"Sesiones parciales: {result['partial_sessions']}"
+            f"{skipped_text}{pain_text}\n"
+            f"Sugerencias:\n{suggestions}"
         )
 
     return {"response": response}

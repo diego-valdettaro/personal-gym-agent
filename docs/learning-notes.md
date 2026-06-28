@@ -213,3 +213,25 @@ plan_change_log
 The active plan remains structured in SQLite, and `workspace/current_plan.md`
 is refreshed after successful changes. The current safety rule is simple:
 the tool refuses to move a session onto an already occupied day.
+
+## What Block 7 Adds
+
+Block 7 replaces the mock scorecard with a real MVP analysis.
+
+`generate_scorecard` now reads:
+
+- the active weekly plan;
+- saved `workout_feedback` rows.
+
+It calculates:
+
+- adherence percentage;
+- logged completed or partial sessions;
+- partial and skipped sessions;
+- skipped exercises and counts;
+- pain flags at 3/10 or higher;
+- difficulty signals;
+- practical suggestions.
+
+This is still a simple scorecard, but it is now grounded in persisted data
+instead of a canned response.

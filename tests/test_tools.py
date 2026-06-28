@@ -39,7 +39,8 @@ def test_generate_scorecard_returns_fake_scorecard():
     result = generate_scorecard(chat_id="test-user", week_start="2026-06-08")
 
     assert result["tool"] == "generate_scorecard"
-    assert result["adherence"] == "2/3 sessions completed"
+    assert result["adherence_percent"] == 0
+    assert result["summary"] == "Adherencia 0% (0/0 sesiones registradas)."
 
 
 def test_generate_weekly_plan_saves_structured_active_plan(monkeypatch, tmp_path):

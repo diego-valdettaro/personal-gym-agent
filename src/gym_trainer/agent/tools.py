@@ -19,7 +19,9 @@ from gym_trainer.domain.plans import (
     normalize_day,
     week_start_for,
 )
+from gym_trainer.domain.scorecard import build_scorecard
 from gym_trainer.storage.sqlite import (
+    list_workout_feedback,
     load_active_weekly_plan,
     replace_plan_sessions,
     save_weekly_plan,
@@ -256,15 +258,19 @@ def update_plan(
 
 
 def generate_scorecard(chat_id: str, week_start: str | None = None) -> dict[str, Any]:
-    """Return a fake scorecard for smoke testing the tool path."""
+    """Generate a scorecard from the active plan and saved feedback."""
 
+    plan = load_active_weekly_plan(chat_id)
+    feedback_records = list_workout_feedback(chat_id)
+    scorecard = build_scorecard(
+        plan=plan,
+        feedback_records=feedback_records,
+        week_start=week_start,
+    )
     return {
         "tool": "generate_scorecard",
         "chat_id": chat_id,
-        "week_start": week_start,
-        "adherence": "2/3 sessions completed",
-        "pain_flags": [],
-        "summary": "Mock scorecard: consistent week, no pain flags recorded.",
+        **scorecard,
     }
 
 

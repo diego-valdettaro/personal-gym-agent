@@ -133,6 +133,11 @@ def _extract_skipped_exercises(normalized_message: str) -> list[str]:
     for pattern in patterns:
         for match in re.finditer(pattern, normalized_message):
             exercise = match.group(1).strip()
+            exercise = re.split(
+                r"\b(?:dolor|molestia|pesado|duro|liviano|facil|fácil)\b",
+                exercise,
+                maxsplit=1,
+            )[0].strip()
             if exercise and exercise not in skipped:
                 skipped.append(exercise)
     return skipped
