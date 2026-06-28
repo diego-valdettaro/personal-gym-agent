@@ -113,6 +113,26 @@ def initialize(connection: sqlite3.Connection) -> None:
         );
         """
     )
+    _ensure_column(connection, "workout_feedback", "completed_exercises_json", "TEXT NOT NULL DEFAULT '[]'")
+    _ensure_column(connection, "workout_feedback", "loads_json", "TEXT NOT NULL DEFAULT '[]'")
+    _ensure_column(connection, "workout_feedback", "rpe", "REAL")
+    _ensure_column(connection, "workout_feedback", "duration_minutes", "INTEGER")
+
+
+def _ensure_column(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_definition: str,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        connection.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+        )
 
 
 def load_chat_state(chat_id: str) -> dict[str, Any]:
@@ -504,9 +524,10 @@ def save_workout_feedback(*, chat_id: str, feedback: dict[str, Any]) -> int:
             INSERT INTO workout_feedback (
                 chat_id, session_name, workout_date, status,
                 skipped_exercises_json, pain_level, pain_area, difficulty,
-                notes, source_message, created_at
+                notes, source_message, created_at, completed_exercises_json,
+                loads_json, rpe, duration_minutes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 chat_id,
@@ -520,6 +541,10 @@ def save_workout_feedback(*, chat_id: str, feedback: dict[str, Any]) -> int:
                 feedback.get("notes", ""),
                 feedback.get("source_message", ""),
                 now_iso(),
+                json.dumps(feedback.get("completed_exercises", [])),
+                json.dumps(feedback.get("loads", [])),
+                feedback.get("rpe"),
+                feedback.get("duration_minutes"),
             ),
         )
         return int(cursor.lastrowid)
@@ -533,7 +558,8 @@ def list_workout_feedback(chat_id: str) -> list[dict[str, Any]]:
             """
             SELECT id, chat_id, session_name, workout_date, status,
                    skipped_exercises_json, pain_level, pain_area, difficulty,
-                   notes, source_message, created_at
+                   notes, source_message, created_at, completed_exercises_json,
+                   loads_json, rpe, duration_minutes
             FROM workout_feedback
             WHERE chat_id = ?
             ORDER BY created_at ASC, id ASC
@@ -555,6 +581,10 @@ def list_workout_feedback(chat_id: str) -> list[dict[str, Any]]:
             "notes": row["notes"],
             "source_message": row["source_message"],
             "created_at": row["created_at"],
+            "completed_exercises": json.loads(row["completed_exercises_json"]),
+            "loads": json.loads(row["loads_json"]),
+            "rpe": row["rpe"],
+            "duration_minutes": row["duration_minutes"],
         }
         for row in rows
     ]

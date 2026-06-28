@@ -49,6 +49,12 @@ python -m gym_trainer.main agent-test --chat-id demo --message "2 hombro"
 Painful feedback can automatically adjust future plan guidance and records the
 change in `plan_change_log`.
 
+Detailed feedback can include loads, RPE, and duration:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "hice bench 80kg y squat 100 kg rpe 8.5 duracion 70 min dolor 1"
+```
+
 Move a planned session:
 
 ```bash

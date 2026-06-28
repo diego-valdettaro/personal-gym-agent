@@ -401,9 +401,15 @@ def format_response(state: AgentState) -> dict[str, Any]:
             if pain_level is not None
             else ""
         )
+        rpe_text = f" RPE: {feedback['rpe']}." if feedback.get("rpe") is not None else ""
+        duration_text = (
+            f" Duracion: {feedback['duration_minutes']} min."
+            if feedback.get("duration_minutes") is not None
+            else ""
+        )
         response = (
             f"Guardado: {feedback.get('session_name') or 'entrenamiento'} "
-            f"({feedback['status']}).{skipped_text}{pain_text}"
+            f"({feedback['status']}).{skipped_text}{pain_text}{rpe_text}{duration_text}"
         )
         if result.get("adaptation"):
             response += f" Ajuste el plan: {result['adaptation']['summary']}."

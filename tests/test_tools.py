@@ -71,9 +71,13 @@ def test_log_workout_feedback_persists_record(monkeypatch, tmp_path):
             "session_name": "Push",
             "workout_date": None,
             "status": "partial",
+            "completed_exercises": ["bench"],
             "skipped_exercises": ["press militar"],
+            "loads": [{"exercise": "bench", "load_kg": 80.0}],
             "pain_level": 2,
             "pain_area": "shoulder",
+            "rpe": 8.0,
+            "duration_minutes": 70,
             "difficulty": "hard",
             "notes": "hice push pero no hice press militar dolor 2 hombro",
             "source_message": "hice push pero no hice press militar dolor 2 hombro",
@@ -84,8 +88,12 @@ def test_log_workout_feedback_persists_record(monkeypatch, tmp_path):
     saved_feedback = list_workout_feedback("feedback-user")
     assert len(saved_feedback) == 1
     assert saved_feedback[0]["session_name"] == "Push"
+    assert saved_feedback[0]["completed_exercises"] == ["bench"]
     assert saved_feedback[0]["skipped_exercises"] == ["press militar"]
+    assert saved_feedback[0]["loads"] == [{"exercise": "bench", "load_kg": 80.0}]
     assert saved_feedback[0]["pain_level"] == 2
+    assert saved_feedback[0]["rpe"] == 8.0
+    assert saved_feedback[0]["duration_minutes"] == 70
 
 
 def test_log_workout_feedback_auto_adapts_active_plan(monkeypatch, tmp_path):

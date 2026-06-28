@@ -54,6 +54,15 @@ python -m gym_trainer.main agent-test --chat-id demo --message "hice push dolor 
 Expected result: feedback is saved, future shoulder-sensitive sessions are
 adjusted, and `plan_change_log` records `auto_adapt_feedback`.
 
+Log detailed performance feedback:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "hice bench 80kg y squat 100 kg rpe 8.5 duracion 70 min dolor 1"
+```
+
+Expected result: the feedback row includes completed exercises, loads, RPE, and
+duration.
+
 Move a session:
 
 ```bash
@@ -89,6 +98,7 @@ The smoke tests verify that:
 - plan sessions can be moved and audited in `plan_change_log`.
 - scorecards summarize persisted feedback instead of returning a mock.
 - pain feedback can trigger conservative automatic plan adaptation.
+- feedback parsing captures loads, RPE, duration, and completed exercises.
 
 ## Enable LangSmith Tracing
 

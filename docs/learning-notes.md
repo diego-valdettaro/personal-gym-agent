@@ -289,3 +289,21 @@ plan should be adjusted. Current deterministic adaptations include:
 
 The adaptation is intentionally conservative: it changes future guidance and
 exercise substitutions without attempting complex periodization.
+
+## What Block 11 Adds
+
+Block 11 improves feedback extraction.
+
+The deterministic parser now captures more structured training details:
+
+- completed exercises;
+- skipped exercises;
+- loads in kilograms;
+- RPE;
+- duration in minutes;
+- pain level and pain area;
+- difficulty derived from RPE when available.
+
+SQLite `workout_feedback` stores these richer fields so future scorecards and
+progression logic can reason about actual training performance instead of only
+session completion.
