@@ -1,0 +1,51 @@
+from gym_trainer.agent.tools import (
+    generate_weekly_plan,
+    generate_scorecard,
+    get_today_workout,
+    get_week_plan,
+)
+from gym_trainer.storage.sqlite import load_active_weekly_plan
+
+
+def test_get_today_workout_reads_current_plan_file(monkeypatch, tmp_path):
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(tmp_path / "tools.sqlite"))
+
+    result = get_today_workout(chat_id="test-user", date="2026-06-08")
+
+    assert result["tool"] == "get_today_workout"
+    assert "Push" in result["session_name"]
+    assert result["exercises"]
+    assert result["notes"] != "Mock workout for Block 1. No real plan storage yet."
+
+
+def test_get_week_plan_reads_current_plan_file(monkeypatch, tmp_path):
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(tmp_path / "tools.sqlite"))
+
+    result = get_week_plan(chat_id="test-user", week_start="2026-06-08")
+
+    assert result["tool"] == "get_week_plan"
+    assert len(result["sessions"]) >= 3
+    assert result["notes"] == "Read from workspace/current_plan.md."
+
+
+def test_generate_scorecard_returns_fake_scorecard():
+    result = generate_scorecard(chat_id="test-user", week_start="2026-06-08")
+
+    assert result["tool"] == "generate_scorecard"
+    assert result["adherence"] == "2/3 sessions completed"
+
+
+def test_generate_weekly_plan_saves_structured_active_plan(monkeypatch, tmp_path):
+    db_path = tmp_path / "plans.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+
+    result = generate_weekly_plan(chat_id="plan-user", week_start="2026-06-08")
+
+    assert result["tool"] == "generate_weekly_plan"
+    assert result["training_days"] == 5
+    assert result["sessions"][0]["name"] == "Push - Functional Hypertrophy"
+
+    saved_plan = load_active_weekly_plan("plan-user")
+    assert saved_plan is not None
+    assert saved_plan["week_start"] == "2026-06-08"
+    assert saved_plan["sessions"][0]["exercises"]
