@@ -77,6 +77,21 @@ def initialize(connection: sqlite3.Connection) -> None:
             position INTEGER NOT NULL,
             FOREIGN KEY(plan_id) REFERENCES plans(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS workout_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id TEXT NOT NULL,
+            session_name TEXT,
+            workout_date TEXT,
+            status TEXT NOT NULL,
+            skipped_exercises_json TEXT NOT NULL DEFAULT '[]',
+            pain_level INTEGER,
+            pain_area TEXT,
+            difficulty TEXT,
+            notes TEXT NOT NULL DEFAULT '',
+            source_message TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL
+        );
         """
     )
 
@@ -317,3 +332,68 @@ def load_active_weekly_plan(chat_id: str) -> dict[str, Any] | None:
             for row in session_rows
         ],
     }
+
+
+def save_workout_feedback(*, chat_id: str, feedback: dict[str, Any]) -> int:
+    """Save one structured workout feedback record."""
+
+    with connect() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO workout_feedback (
+                chat_id, session_name, workout_date, status,
+                skipped_exercises_json, pain_level, pain_area, difficulty,
+                notes, source_message, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                chat_id,
+                feedback.get("session_name"),
+                feedback.get("workout_date"),
+                feedback.get("status", "completed"),
+                json.dumps(feedback.get("skipped_exercises", [])),
+                feedback.get("pain_level"),
+                feedback.get("pain_area"),
+                feedback.get("difficulty"),
+                feedback.get("notes", ""),
+                feedback.get("source_message", ""),
+                now_iso(),
+            ),
+        )
+        return int(cursor.lastrowid)
+
+
+def list_workout_feedback(chat_id: str) -> list[dict[str, Any]]:
+    """Return saved workout feedback for a chat in insertion order."""
+
+    with connect() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, chat_id, session_name, workout_date, status,
+                   skipped_exercises_json, pain_level, pain_area, difficulty,
+                   notes, source_message, created_at
+            FROM workout_feedback
+            WHERE chat_id = ?
+            ORDER BY created_at ASC, id ASC
+            """,
+            (chat_id,),
+        ).fetchall()
+
+    return [
+        {
+            "id": row["id"],
+            "chat_id": row["chat_id"],
+            "session_name": row["session_name"],
+            "workout_date": row["workout_date"],
+            "status": row["status"],
+            "skipped_exercises": json.loads(row["skipped_exercises_json"]),
+            "pain_level": row["pain_level"],
+            "pain_area": row["pain_area"],
+            "difficulty": row["difficulty"],
+            "notes": row["notes"],
+            "source_message": row["source_message"],
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]

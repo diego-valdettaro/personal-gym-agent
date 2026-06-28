@@ -12,7 +12,11 @@ from datetime import date as date_type
 from typing import Any
 
 from gym_trainer.domain.plans import build_functional_hypertrophy_plan, week_start_for
-from gym_trainer.storage.sqlite import load_active_weekly_plan, save_weekly_plan
+from gym_trainer.storage.sqlite import (
+    load_active_weekly_plan,
+    save_weekly_plan,
+    save_workout_feedback,
+)
 from gym_trainer.workspace.plans import (
     find_session_for_date,
     load_current_plan,
@@ -150,6 +154,18 @@ def get_week_plan(chat_id: str, week_start: str | None = None) -> dict[str, Any]
     }
 
 
+def log_workout_feedback(chat_id: str, feedback: dict[str, Any]) -> dict[str, Any]:
+    """Persist structured workout feedback."""
+
+    feedback_id = save_workout_feedback(chat_id=chat_id, feedback=feedback)
+    return {
+        "tool": "log_workout_feedback",
+        "chat_id": chat_id,
+        "feedback_id": feedback_id,
+        "feedback": feedback,
+    }
+
+
 def generate_scorecard(chat_id: str, week_start: str | None = None) -> dict[str, Any]:
     """Return a fake scorecard for smoke testing the tool path."""
 
@@ -167,6 +183,7 @@ MOCK_TOOLS = {
     "generate_weekly_plan": generate_weekly_plan,
     "get_today_workout": get_today_workout,
     "get_week_plan": get_week_plan,
+    "log_workout_feedback": log_workout_feedback,
     "generate_scorecard": generate_scorecard,
 }
 

@@ -13,6 +13,12 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
+from gym_trainer.domain.feedback import (
+    extract_pain_area,
+    extract_pain_level,
+    extract_workout_feedback,
+    looks_like_workout_feedback,
+)
 from gym_trainer.agent.state import AgentState
 from gym_trainer.agent.tools import MOCK_TOOLS
 from gym_trainer.storage.sqlite import (
@@ -71,6 +77,34 @@ def agent(state: AgentState) -> dict[str, Any]:
 
     if state["pending_action"] is not None:
         pending_action = state["pending_action"]
+        if pending_action["action_type"] == "feedback_pain_followup":
+            feedback = {
+                **pending_action["payload"]["feedback"],
+                "pain_level": extract_pain_level(state["user_message"]),
+                "pain_area": extract_pain_area(state["user_message"])
+                or pending_action["payload"]["feedback"].get("pain_area"),
+            }
+            if feedback["pain_level"] is None:
+                return {
+                    "pending_intent": "log_workout_feedback",
+                    "pending_action": pending_action,
+                    "response": "Necesito un numero de dolor del 0 al 10 para guardar el entrenamiento.",
+                }
+            return {
+                "pending_intent": None,
+                "pending_fields": {},
+                "clear_pending_action": True,
+                "tool_calls": [
+                    {
+                        "name": "log_workout_feedback",
+                        "args": {
+                            "chat_id": state["chat_id"],
+                            "feedback": feedback,
+                        },
+                    }
+                ],
+            }
+
         pending_fields = {
             **state["pending_fields"],
             pending_action["payload"]["field"]: state["user_message"],
@@ -96,6 +130,38 @@ def agent(state: AgentState) -> dict[str, Any]:
                 "payload": {"field": "training_days"},
             },
             "response": prompt,
+        }
+
+    if looks_like_workout_feedback(state["user_message"]):
+        feedback = extract_workout_feedback(state["user_message"])
+        if feedback["needs_pain_followup"]:
+            session = feedback["session_name"] or "entrenamiento"
+            prompt = (
+                f"Registro {session} como {feedback['status']}. "
+                "Dolor o molestia 0-10?"
+            )
+            return {
+                "pending_intent": "log_workout_feedback",
+                "pending_fields": {"missing": "pain_level"},
+                "pending_action": {
+                    "action_type": "feedback_pain_followup",
+                    "prompt": prompt,
+                    "payload": {"feedback": feedback},
+                },
+                "extracted_feedback": feedback,
+                "response": prompt,
+            }
+        return {
+            "extracted_feedback": feedback,
+            "tool_calls": [
+                {
+                    "name": "log_workout_feedback",
+                    "args": {
+                        "chat_id": state["chat_id"],
+                        "feedback": feedback,
+                    },
+                }
+            ],
         }
 
     if any(term in message for term in ("arma", "genera", "crear", "nuevo plan")):
@@ -205,6 +271,25 @@ def format_response(state: AgentState) -> dict[str, Any]:
             f"- {session['day']}: {session['name']}" for session in result["sessions"]
         )
         response = f"Plan semanal actual:\n{sessions}"
+    elif tool_name == "log_workout_feedback":
+        feedback = result["feedback"]
+        skipped = feedback.get("skipped_exercises", [])
+        skipped_text = (
+            f" Ejercicios omitidos: {', '.join(skipped)}."
+            if skipped
+            else ""
+        )
+        pain_level = feedback.get("pain_level")
+        pain_text = (
+            f" Dolor: {pain_level}/10"
+            + (f" en {feedback['pain_area']}." if feedback.get("pain_area") else ".")
+            if pain_level is not None
+            else ""
+        )
+        response = (
+            f"Guardado: {feedback.get('session_name') or 'entrenamiento'} "
+            f"({feedback['status']}).{skipped_text}{pain_text}"
+        )
     else:
         response = (
             f"Scorecard mock: {result['adherence']}. "

@@ -23,6 +23,16 @@ python -m gym_trainer.main agent-test --chat-id demo --message "arma mi plan"
 Expected result: a 5-session weekly plan saved in SQLite and rendered to
 `workspace/current_plan.md`.
 
+Log a partial workout with a follow-up:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "hice push pero no hice press militar"
+python -m gym_trainer.main agent-test --chat-id demo --message "2 hombro"
+```
+
+Expected result: the first command asks for pain 0-10, and the second command
+saves a structured `workout_feedback` row.
+
 ## Run Tests
 
 ```bash
@@ -36,6 +46,7 @@ The smoke tests verify that:
 - the CLI path works;
 - mock tools return expected structured data.
 - generated weekly plans are persisted as structured SQLite records.
+- workout feedback can be logged through a two-turn pain follow-up.
 
 ## Enable LangSmith Tracing
 
@@ -66,6 +77,7 @@ If the response is wrong, inspect the state handoff in this order:
 
 ## Current Limits
 
-There is no LLM-backed plan reasoning, Telegram integration, feedback logging,
-plan modification, or real scorecard calculation yet. Weekly plan generation is
-currently deterministic so the storage and graph contract stay easy to review.
+There is no LLM-backed plan reasoning, Telegram integration, plan modification,
+or real scorecard calculation yet. Weekly plan generation and feedback
+extraction are currently deterministic so the storage and graph contracts stay
+easy to review.

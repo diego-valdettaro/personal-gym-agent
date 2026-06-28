@@ -164,3 +164,33 @@ workspace/current_plan.md = inspectable view
 The plan generator is intentionally deterministic for now. That makes tests
 straightforward and gives future LLM-backed generation a stable contract to
 replace, rather than letting model text become the storage format.
+
+## What Block 5 Adds
+
+Block 5 introduces structured workout feedback logging.
+
+The graph can now handle:
+
+```text
+python -m gym_trainer.main agent-test --chat-id demo --message "hice push pero no hice press militar"
+python -m gym_trainer.main agent-test --chat-id demo --message "2 hombro"
+```
+
+The first message is interpreted as a partial Push session with a skipped
+exercise. Because pain is a required MVP field, the graph stores a pending
+follow-up action instead of writing an incomplete feedback row. The second
+message completes the missing pain field and then calls `log_workout_feedback`.
+
+The new persistence table is:
+
+```text
+workout_feedback
+```
+
+It stores session name, status, skipped exercises, pain level, pain area,
+difficulty, notes, original source message, and creation time.
+
+The extractor is deterministic for now. It covers common MVP messages such as
+`hice push`, `no hice press militar`, `dolor 2 hombro`, and `estuvo pesado`.
+Later blocks can replace the extraction logic with LLM-backed reasoning while
+keeping the same `log_workout_feedback` tool contract.

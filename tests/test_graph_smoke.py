@@ -1,7 +1,11 @@
 from pathlib import Path
 
 from gym_trainer.agent.graph import build_graph, run_agent_turn
-from gym_trainer.storage.sqlite import load_chat_state, load_pending_action
+from gym_trainer.storage.sqlite import (
+    list_workout_feedback,
+    load_chat_state,
+    load_pending_action,
+)
 
 
 def test_graph_can_be_built():
@@ -63,3 +67,50 @@ def test_graph_persists_pending_action_between_turns(monkeypatch):
     assert load_chat_state("persist-test")["pending_fields"]["training_days"] == "4"
 
     db_path.unlink()
+
+
+def test_graph_logs_feedback_when_pain_is_present(monkeypatch, tmp_path):
+    db_path = tmp_path / "feedback_graph.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+
+    response = run_agent_turn(
+        chat_id="feedback-graph",
+        user_message="hice push pero no hice press militar dolor 2 hombro",
+    )
+
+    assert "Guardado: Push (partial)" in response
+    assert "press militar" in response
+    assert "Dolor: 2/10" in response
+
+    saved_feedback = list_workout_feedback("feedback-graph")
+    assert len(saved_feedback) == 1
+    assert saved_feedback[0]["status"] == "partial"
+    assert saved_feedback[0]["pain_area"] == "shoulder"
+
+
+def test_graph_asks_pain_followup_before_logging_feedback(monkeypatch, tmp_path):
+    db_path = tmp_path / "feedback_followup.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+
+    first_response = run_agent_turn(
+        chat_id="feedback-followup",
+        user_message="hice push pero no hice press militar",
+    )
+
+    assert "Dolor o molestia 0-10" in first_response
+    assert list_workout_feedback("feedback-followup") == []
+    assert load_pending_action("feedback-followup")["action_type"] == (
+        "feedback_pain_followup"
+    )
+
+    second_response = run_agent_turn(
+        chat_id="feedback-followup",
+        user_message="2 hombro",
+    )
+
+    assert "Guardado: Push (partial)" in second_response
+    assert "Dolor: 2/10" in second_response
+    assert load_pending_action("feedback-followup") is None
+    saved_feedback = list_workout_feedback("feedback-followup")
+    assert len(saved_feedback) == 1
+    assert saved_feedback[0]["skipped_exercises"] == ["press militar"]

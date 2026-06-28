@@ -3,8 +3,9 @@ from gym_trainer.agent.tools import (
     generate_scorecard,
     get_today_workout,
     get_week_plan,
+    log_workout_feedback,
 )
-from gym_trainer.storage.sqlite import load_active_weekly_plan
+from gym_trainer.storage.sqlite import load_active_weekly_plan, list_workout_feedback
 
 
 def test_get_today_workout_reads_current_plan_file(monkeypatch, tmp_path):
@@ -49,3 +50,30 @@ def test_generate_weekly_plan_saves_structured_active_plan(monkeypatch, tmp_path
     assert saved_plan is not None
     assert saved_plan["week_start"] == "2026-06-08"
     assert saved_plan["sessions"][0]["exercises"]
+
+
+def test_log_workout_feedback_persists_record(monkeypatch, tmp_path):
+    db_path = tmp_path / "feedback.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+
+    result = log_workout_feedback(
+        chat_id="feedback-user",
+        feedback={
+            "session_name": "Push",
+            "workout_date": None,
+            "status": "partial",
+            "skipped_exercises": ["press militar"],
+            "pain_level": 2,
+            "pain_area": "shoulder",
+            "difficulty": "hard",
+            "notes": "hice push pero no hice press militar dolor 2 hombro",
+            "source_message": "hice push pero no hice press militar dolor 2 hombro",
+        },
+    )
+
+    assert result["tool"] == "log_workout_feedback"
+    saved_feedback = list_workout_feedback("feedback-user")
+    assert len(saved_feedback) == 1
+    assert saved_feedback[0]["session_name"] == "Push"
+    assert saved_feedback[0]["skipped_exercises"] == ["press militar"]
+    assert saved_feedback[0]["pain_level"] == 2
