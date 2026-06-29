@@ -12,6 +12,14 @@ feedback logging with a pain follow-up flow.
 python -m pip install -e ".[dev]"
 ```
 
+Create local environment config:
+
+```bash
+cp .env.example .env
+```
+
+Then set `OPENAI_API_KEY` in `.env` to enable LLM-backed plan generation.
+
 ## Run the sandbox
 
 ```bash

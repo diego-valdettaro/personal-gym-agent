@@ -10,6 +10,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -28,7 +30,9 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    """Load settings without requiring optional secrets during Block 1."""
+    """Load settings from .env and environment variables."""
+
+    load_dotenv(PROJECT_ROOT / ".env", override=False)
 
     return Settings(
         openai_api_key=os.getenv("OPENAI_API_KEY") or None,

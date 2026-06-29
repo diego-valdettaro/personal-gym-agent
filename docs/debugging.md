@@ -6,6 +6,15 @@
 python -m pip install -e ".[dev]"
 ```
 
+Create a local `.env`:
+
+```bash
+copy .env.example .env
+```
+
+Then edit `.env` and set `OPENAI_API_KEY`. Environment variables already set in
+the shell still take priority over `.env`.
+
 ## Run The CLI Sandbox
 
 ```bash
