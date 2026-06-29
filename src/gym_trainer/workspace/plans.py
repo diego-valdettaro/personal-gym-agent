@@ -60,6 +60,17 @@ def render_current_plan_markdown(plan: dict) -> str:
         )
         lines.extend(f"- {exercise}" for exercise in session["exercises"])
 
+        load_targets = session.get("exercise_load_targets", [])
+        if load_targets:
+            lines.append("Load targets:")
+            for target in load_targets:
+                last_load = target.get("last_load_kg")
+                last_text = f" from {last_load:g}kg" if last_load is not None else ""
+                lines.append(
+                    f"- {target['exercise']}: {target['target_load_kg']:g}kg"
+                    f"{last_text} ({target.get('basis', '').strip()})"
+                )
+
         rest_guidance = session.get("rest_guidance")
         pain_modifications = session.get("pain_modifications")
         optional_cardio = session.get("optional_cardio")

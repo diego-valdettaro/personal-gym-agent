@@ -315,6 +315,10 @@ builds a deterministic safe baseline, then asks OpenAI for a strict JSON plan
 using the saved profile and recent feedback. The app validates the returned JSON
 against the same session contract used by SQLite.
 
+Logged exercise loads are also aggregated and included in the planner context.
+Plan sessions now persist `exercise_load_targets` in SQLite so future plans can
+progress from the user's actual training history instead of inventing weights.
+
 If `OPENAI_API_KEY` is missing, the SDK is unavailable, or the JSON does not
 validate, the deterministic planner is used automatically. This keeps local
 development reliable while allowing real LLM planning in configured runs.

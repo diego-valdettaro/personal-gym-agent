@@ -14,6 +14,7 @@ def build_llm_weekly_plan(
     week_start: str,
     profile: dict[str, Any],
     recent_feedback: list[dict[str, Any]],
+    load_history: list[dict[str, Any]],
     fallback_plan: dict[str, Any],
     generate_text: PlanTextGenerator,
 ) -> dict[str, Any]:
@@ -24,6 +25,7 @@ def build_llm_weekly_plan(
             week_start=week_start,
             profile=profile,
             recent_feedback=recent_feedback,
+            load_history=load_history,
             fallback_plan=fallback_plan,
         )
     )
@@ -48,6 +50,7 @@ def _build_plan_prompt(
     week_start: str,
     profile: dict[str, Any],
     recent_feedback: list[dict[str, Any]],
+    load_history: list[dict[str, Any]],
     fallback_plan: dict[str, Any],
 ) -> str:
     return (
@@ -60,12 +63,18 @@ def _build_plan_prompt(
         '"week_start": string, "training_days": number, "sessions": ['
         '{"day": string, "name": string, "goal": string, "warmup": string, '
         '"exercises": [string], "rest_guidance": string, '
-        '"pain_modifications": string, "optional_cardio": string, "notes": string}'
+        '"pain_modifications": string, "optional_cardio": string, "notes": string, '
+        '"exercise_load_targets": [{"exercise": string, "last_load_kg": number, '
+        '"best_load_kg": number, "target_load_kg": number, "basis": string}]}'
         '], "notes": string'
         "}\n\n"
         f"Week start: {week_start}\n"
         f"User profile JSON: {json.dumps(profile)}\n"
         f"Recent feedback JSON: {json.dumps(recent_feedback[-10:])}\n"
+        f"Exercise load history JSON: {json.dumps(load_history)}\n"
+        "Use load history for progressive overload. When RPE was manageable, "
+        "increase target load conservatively; when RPE was high or pain exists, "
+        "repeat or reduce load. Store targets in exercise_load_targets.\n"
         f"Safe baseline plan JSON: {json.dumps(fallback_plan)}\n"
     )
 
@@ -113,6 +122,9 @@ def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
                 "pain_modifications": str(session["pain_modifications"]),
                 "optional_cardio": str(session["optional_cardio"]),
                 "notes": str(session["notes"]),
+                "exercise_load_targets": _validate_load_targets(
+                    session.get("exercise_load_targets", [])
+                ),
             }
         )
 
@@ -122,3 +134,30 @@ def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
         "sessions": sessions,
         "notes": str(plan["notes"]),
     }
+
+
+def _validate_load_targets(targets: Any) -> list[dict[str, Any]]:
+    if not isinstance(targets, list):
+        return []
+    validated = []
+    for target in targets:
+        if not isinstance(target, dict):
+            continue
+        if "exercise" not in target or "target_load_kg" not in target:
+            continue
+        validated.append(
+            {
+                "exercise": str(target["exercise"]),
+                "last_load_kg": _optional_float(target.get("last_load_kg")),
+                "best_load_kg": _optional_float(target.get("best_load_kg")),
+                "target_load_kg": float(target["target_load_kg"]),
+                "basis": str(target.get("basis", "")),
+            }
+        )
+    return validated
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    return float(value)

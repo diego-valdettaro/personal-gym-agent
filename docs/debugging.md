@@ -83,6 +83,15 @@ python -m gym_trainer.main agent-test --chat-id demo --message "hice bench 80kg 
 Expected result: the feedback row includes completed exercises, loads, RPE, and
 duration.
 
+After logging loads, generate a new plan:
+
+```bash
+python -m gym_trainer.main agent-test --chat-id demo --message "arma mi plan"
+```
+
+Expected result: the planner receives exercise load history, and saved
+`plan_sessions` include structured `exercise_load_targets`.
+
 Move a session:
 
 ```bash
@@ -119,6 +128,7 @@ The smoke tests verify that:
 - scorecards summarize persisted feedback instead of returning a mock.
 - pain feedback can trigger conservative automatic plan adaptation.
 - feedback parsing captures loads, RPE, duration, and completed exercises.
+- plan generation uses logged loads to create progression targets.
 
 ## Enable LangSmith Tracing
 

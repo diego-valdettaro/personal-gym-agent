@@ -49,8 +49,12 @@ def missing_required_profile_fields(profile: dict[str, Any]) -> list[dict[str, s
 
     missing = []
     for field in PROFILE_FIELDS:
-        value = profile.get(field["name"])
-        if value in (None, "", []):
+        field_name = field["name"]
+        if field_name not in profile:
+            missing.append(field)
+            continue
+        value = profile.get(field_name)
+        if value is None or value == "":
             missing.append(field)
     return missing
 

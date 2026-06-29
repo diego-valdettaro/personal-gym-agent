@@ -67,6 +67,9 @@ Detailed feedback can include loads, RPE, and duration:
 python -m gym_trainer.main agent-test --chat-id demo --message "hice bench 80kg y squat 100 kg rpe 8.5 duracion 70 min dolor 1"
 ```
 
+Logged loads are aggregated by exercise and passed into the next weekly plan so
+the LLM or deterministic fallback can set progressive load targets.
+
 Move a planned session:
 
 ```bash

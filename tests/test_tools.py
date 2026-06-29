@@ -9,6 +9,7 @@ from gym_trainer.agent.tools import (
     update_plan,
 )
 from gym_trainer.storage.sqlite import (
+    list_exercise_load_history,
     list_plan_change_log,
     load_user_profile,
     load_active_weekly_plan,
@@ -62,6 +63,53 @@ def test_generate_weekly_plan_saves_structured_active_plan(monkeypatch, tmp_path
     assert saved_plan["sessions"][0]["exercises"]
 
 
+def test_generate_weekly_plan_uses_logged_load_history(monkeypatch, tmp_path):
+    db_path = tmp_path / "progression_plan.sqlite"
+    monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
+    update_user_profile(
+        chat_id="progression-user",
+        updates={
+            "training_days": 5,
+            "session_duration_minutes": 75,
+            "preferred_training_days": [
+                "monday",
+                "tuesday",
+                "thursday",
+                "saturday",
+                "sunday",
+            ],
+            "pain_areas": [],
+            "gym_access": "gym",
+        },
+    )
+    log_workout_feedback(
+        chat_id="progression-user",
+        feedback={
+            "session_name": "Push",
+            "workout_date": None,
+            "status": "completed",
+            "completed_exercises": ["bench press"],
+            "skipped_exercises": [],
+            "loads": [{"exercise": "bench press", "load_kg": 80.0}],
+            "pain_level": 0,
+            "pain_area": None,
+            "rpe": 7.0,
+            "duration_minutes": 70,
+            "difficulty": "ok",
+            "notes": "bench 80kg rpe 7",
+            "source_message": "bench 80kg rpe 7",
+        },
+    )
+
+    result = generate_weekly_plan(chat_id="progression-user", week_start="2026-06-08")
+
+    assert result["load_history"][0]["exercise"] == "bench press"
+    saved_plan = load_active_weekly_plan("progression-user")
+    assert saved_plan is not None
+    push = saved_plan["sessions"][0]
+    assert push["exercise_load_targets"][0]["target_load_kg"] == 82.5
+
+
 def test_log_workout_feedback_persists_record(monkeypatch, tmp_path):
     db_path = tmp_path / "feedback.sqlite"
     monkeypatch.setenv("GYM_TRAINER_DB_PATH", str(db_path))
@@ -95,6 +143,18 @@ def test_log_workout_feedback_persists_record(monkeypatch, tmp_path):
     assert saved_feedback[0]["pain_level"] == 2
     assert saved_feedback[0]["rpe"] == 8.0
     assert saved_feedback[0]["duration_minutes"] == 70
+
+    load_history = list_exercise_load_history("feedback-user")
+    assert load_history == [
+        {
+            "exercise": "bench",
+            "last_load_kg": 80.0,
+            "best_load_kg": 80.0,
+            "last_rpe": 8.0,
+            "entries": 1,
+            "last_seen_at": saved_feedback[0]["created_at"],
+        }
+    ]
 
 
 def test_log_workout_feedback_auto_adapts_active_plan(monkeypatch, tmp_path):

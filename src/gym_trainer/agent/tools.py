@@ -23,9 +23,11 @@ from gym_trainer.domain.plans import (
 )
 from gym_trainer.domain.llm_plans import build_llm_weekly_plan
 from gym_trainer.domain.profile import merge_profile
+from gym_trainer.domain.progression import apply_load_progression_targets
 from gym_trainer.domain.scorecard import build_scorecard
 from gym_trainer.integrations.openai_client import generate_text
 from gym_trainer.storage.sqlite import (
+    list_exercise_load_history,
     list_workout_feedback,
     load_active_weekly_plan,
     load_user_profile,
@@ -48,15 +50,18 @@ def generate_weekly_plan(chat_id: str, week_start: str | None = None) -> dict[st
     resolved_week_start = week_start or week_start_for(date_type.today())
     profile = merge_profile(load_user_profile(chat_id))
     recent_feedback = list_workout_feedback(chat_id)
+    load_history = list_exercise_load_history(chat_id)
     fallback_plan = build_functional_hypertrophy_plan(
         resolved_week_start,
         profile=profile,
         recent_feedback=recent_feedback,
     )
+    fallback_plan = apply_load_progression_targets(fallback_plan, load_history)
     plan = build_llm_weekly_plan(
         week_start=resolved_week_start,
         profile=profile,
         recent_feedback=recent_feedback,
+        load_history=load_history,
         fallback_plan=fallback_plan,
         generate_text=generate_text,
     )
@@ -80,6 +85,7 @@ def generate_weekly_plan(chat_id: str, week_start: str | None = None) -> dict[st
         "sessions": plan["sessions"],
         "notes": plan["notes"],
         "planner_source": plan.get("planner_source", "deterministic"),
+        "load_history": load_history,
         "workspace_updated": workspace_updated,
     }
 

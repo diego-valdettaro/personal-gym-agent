@@ -22,3 +22,17 @@ def test_parse_profile_answer():
         "rodilla",
     ]
     assert parse_profile_answer("gym_access", "gimnasio completo") == "gym"
+
+
+def test_empty_pain_areas_counts_as_answered():
+    profile = merge_profile(
+        {
+            "training_days": 4,
+            "session_duration_minutes": 75,
+            "preferred_training_days": ["lunes"],
+            "pain_areas": [],
+            "gym_access": "gym",
+        }
+    )
+
+    assert missing_required_profile_fields(profile) == []

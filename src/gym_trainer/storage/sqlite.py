@@ -117,6 +117,7 @@ def initialize(connection: sqlite3.Connection) -> None:
     _ensure_column(connection, "workout_feedback", "loads_json", "TEXT NOT NULL DEFAULT '[]'")
     _ensure_column(connection, "workout_feedback", "rpe", "REAL")
     _ensure_column(connection, "workout_feedback", "duration_minutes", "INTEGER")
+    _ensure_column(connection, "plan_sessions", "exercise_load_targets_json", "TEXT NOT NULL DEFAULT '[]'")
 
 
 def _ensure_column(
@@ -330,9 +331,10 @@ def save_weekly_plan(
                 """
                 INSERT INTO plan_sessions (
                     plan_id, day, name, goal, warmup, exercises_json,
-                    rest_guidance, pain_modifications, optional_cardio, notes, position
+                    rest_guidance, pain_modifications, optional_cardio, notes,
+                    position, exercise_load_targets_json
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     plan_id,
@@ -346,6 +348,7 @@ def save_weekly_plan(
                     session.get("optional_cardio", ""),
                     session["notes"],
                     position,
+                    json.dumps(session.get("exercise_load_targets", [])),
                 ),
             )
 
@@ -373,7 +376,8 @@ def load_active_weekly_plan(chat_id: str) -> dict[str, Any] | None:
         session_rows = connection.execute(
             """
             SELECT day, name, goal, warmup, exercises_json, rest_guidance,
-                   pain_modifications, optional_cardio, notes, position
+                   pain_modifications, optional_cardio, notes, position,
+                   exercise_load_targets_json
             FROM plan_sessions
             WHERE plan_id = ?
             ORDER BY position ASC
@@ -402,6 +406,7 @@ def load_active_weekly_plan(chat_id: str) -> dict[str, Any] | None:
                 "optional_cardio": row["optional_cardio"],
                 "notes": row["notes"],
                 "position": row["position"],
+                "exercise_load_targets": json.loads(row["exercise_load_targets_json"]),
             }
             for row in session_rows
         ],
@@ -438,9 +443,10 @@ def replace_plan_sessions(
                 """
                 INSERT INTO plan_sessions (
                     plan_id, day, name, goal, warmup, exercises_json,
-                    rest_guidance, pain_modifications, optional_cardio, notes, position
+                    rest_guidance, pain_modifications, optional_cardio, notes,
+                    position, exercise_load_targets_json
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     plan_id,
@@ -454,6 +460,7 @@ def replace_plan_sessions(
                     session.get("optional_cardio", ""),
                     session["notes"],
                     position,
+                    json.dumps(session.get("exercise_load_targets", [])),
                 ),
             )
 
@@ -588,3 +595,36 @@ def list_workout_feedback(chat_id: str) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+
+
+def list_exercise_load_history(chat_id: str) -> list[dict[str, Any]]:
+    """Aggregate logged loads by exercise for progression-aware planning."""
+
+    history: dict[str, dict[str, Any]] = {}
+    for record in list_workout_feedback(chat_id):
+        for load in record.get("loads", []):
+            exercise = str(load.get("exercise", "")).strip()
+            if not exercise:
+                continue
+            key = exercise.lower()
+            load_kg = float(load["load_kg"])
+            current = history.get(key)
+            entry = {
+                "exercise": exercise,
+                "last_load_kg": load_kg,
+                "best_load_kg": load_kg,
+                "last_rpe": record.get("rpe"),
+                "entries": 1,
+                "last_seen_at": record["created_at"],
+            }
+            if current is None:
+                history[key] = entry
+                continue
+            current["entries"] += 1
+            if load_kg > current["best_load_kg"]:
+                current["best_load_kg"] = load_kg
+            current["last_load_kg"] = load_kg
+            current["last_rpe"] = record.get("rpe")
+            current["last_seen_at"] = record["created_at"]
+
+    return sorted(history.values(), key=lambda item: item["exercise"])
