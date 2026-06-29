@@ -307,3 +307,14 @@ The deterministic parser now captures more structured training details:
 SQLite `workout_feedback` stores these richer fields so future scorecards and
 progression logic can reason about actual training performance instead of only
 session completion.
+
+## OpenAI Planner Integration
+
+The plan generator now has an optional OpenAI-backed path. `generate_weekly_plan`
+builds a deterministic safe baseline, then asks OpenAI for a strict JSON plan
+using the saved profile and recent feedback. The app validates the returned JSON
+against the same session contract used by SQLite.
+
+If `OPENAI_API_KEY` is missing, the SDK is unavailable, or the JSON does not
+validate, the deterministic planner is used automatically. This keeps local
+development reliable while allowing real LLM planning in configured runs.

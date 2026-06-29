@@ -39,6 +39,10 @@ training data.
 Plan generation uses the saved profile to adjust training days, preferred days,
 session duration, and pain-sensitive substitutions.
 
+If `OPENAI_API_KEY` is configured and `GYM_TRAINER_USE_LLM_PLANNER=true`, plan
+generation attempts an OpenAI-backed JSON plan first. If the API is unavailable
+or the JSON does not validate, the app falls back to the deterministic planner.
+
 Log workout feedback:
 
 ```bash

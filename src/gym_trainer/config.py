@@ -19,6 +19,8 @@ class Settings:
     """Small settings object read from environment variables."""
 
     openai_model: str = "gpt-4.1-mini"
+    openai_api_key: str | None = None
+    use_llm_planner: bool = True
     langsmith_tracing: bool = False
     langsmith_project: str = "gym-trainer-agent"
     timezone: str = "Europe/Amsterdam"
@@ -29,7 +31,10 @@ def load_settings() -> Settings:
     """Load settings without requiring optional secrets during Block 1."""
 
     return Settings(
+        openai_api_key=os.getenv("OPENAI_API_KEY") or None,
         openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+        use_llm_planner=os.getenv("GYM_TRAINER_USE_LLM_PLANNER", "true").lower()
+        == "true",
         langsmith_tracing=os.getenv("LANGSMITH_TRACING", "false").lower() == "true",
         langsmith_project=os.getenv("LANGSMITH_PROJECT", "gym-trainer-agent"),
         timezone=os.getenv("GYM_TRAINER_TIMEZONE", "Europe/Amsterdam"),

@@ -361,7 +361,8 @@ def format_response(state: AgentState) -> dict[str, Any]:
         )
         response = (
             f"Listo. Genere un plan de {result['training_days']} sesiones "
-            f"para la semana de {result['week_start']}:\n"
+            f"para la semana de {result['week_start']} "
+            f"({result.get('planner_source', 'deterministic')}):\n"
             f"{sessions}\n\n"
             + (
                 "Lo guarde en SQLite y actualice workspace/current_plan.md."

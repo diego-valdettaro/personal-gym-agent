@@ -53,6 +53,7 @@ def test_generate_weekly_plan_saves_structured_active_plan(monkeypatch, tmp_path
 
     assert result["tool"] == "generate_weekly_plan"
     assert result["training_days"] == 5
+    assert result["planner_source"] == "deterministic"
     assert result["sessions"][0]["name"] == "Push - Functional Hypertrophy"
 
     saved_plan = load_active_weekly_plan("plan-user")

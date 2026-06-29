@@ -27,6 +27,17 @@ renders `workspace/current_plan.md`.
 If the saved profile says 4 training days, the generated plan should contain 4
 sessions and use the preferred training days when possible.
 
+To enable LLM-backed planning, set:
+
+```bash
+OPENAI_API_KEY=your_key
+OPENAI_MODEL=gpt-4.1-mini
+GYM_TRAINER_USE_LLM_PLANNER=true
+```
+
+The response includes the planner source, such as `llm`, `deterministic`, or
+`deterministic_fallback`.
+
 Inspect the local profile view:
 
 ```bash
