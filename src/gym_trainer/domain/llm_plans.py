@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any, Callable
 
+from gym_trainer.agent.prompts import PLAN_JSON_PROMPT, PLAN_JSON_SCHEMA_PROMPT
+
 
 PlanTextGenerator = Callable[[str], str | None]
 
@@ -54,20 +56,8 @@ def _build_plan_prompt(
     fallback_plan: dict[str, Any],
 ) -> str:
     return (
-        "You are a practical personal gym trainer. Generate one weekly training "
-        "plan as strict JSON only. Do not include markdown. Follow functional "
-        "hypertrophy principles, prioritize pain-free training, avoid medical "
-        "diagnosis, and keep the plan realistic.\n\n"
-        "Return this JSON shape exactly:\n"
-        "{"
-        '"week_start": string, "training_days": number, "sessions": ['
-        '{"day": string, "name": string, "goal": string, "warmup": string, '
-        '"exercises": [string], "rest_guidance": string, '
-        '"pain_modifications": string, "optional_cardio": string, "notes": string, '
-        '"exercise_load_targets": [{"exercise": string, "last_load_kg": number, '
-        '"best_load_kg": number, "target_load_kg": number, "basis": string}]}'
-        '], "notes": string'
-        "}\n\n"
+        f"{PLAN_JSON_PROMPT}\n\n"
+        f"{PLAN_JSON_SCHEMA_PROMPT}\n\n"
         f"Week start: {week_start}\n"
         f"User profile JSON: {json.dumps(profile)}\n"
         f"Recent feedback JSON: {json.dumps(recent_feedback[-10:])}\n"

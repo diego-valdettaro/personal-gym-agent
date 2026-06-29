@@ -322,3 +322,18 @@ progress from the user's actual training history instead of inventing weights.
 If `OPENAI_API_KEY` is missing, the SDK is unavailable, or the JSON does not
 validate, the deterministic planner is used automatically. This keeps local
 development reliable while allowing real LLM planning in configured runs.
+
+## Architecture Consolidation
+
+The graph is now intentionally thin. It owns the turn sequence, while each
+agent concern lives in a focused module:
+
+- `agent/graph.py`: LangGraph node wiring and turn execution.
+- `agent/reasoning.py`: routing policy, pending follow-ups, and tool selection.
+- `agent/persistence.py`: loading and saving durable graph state.
+- `agent/responses.py`: formatting structured tool results for the user.
+- `agent/prompts.py`: reusable prompt contracts for LLM-backed behavior.
+
+This keeps the MVP easier to extend: adding smarter LLM reasoning should happen
+behind the reasoning or prompt contracts, while storage changes stay behind the
+persistence boundary and tool behavior stays in tools/domain modules.

@@ -1,10 +1,18 @@
 # Personal Gym Agent
 
-Blocks 1-5 create the Python project foundation, a minimal LangGraph CLI
-sandbox, read-only plan tools, SQLite-backed conversation state, and a
-deterministic weekly plan generator that saves structured plans in SQLite while
-refreshing `workspace/current_plan.md`. Block 5 adds structured workout
-feedback logging with a pain follow-up flow.
+This repo is a local-first personal gym agent. It currently includes a
+LangGraph CLI sandbox, SQLite-backed memory, profile intake, workout feedback
+logging, scorecards, conservative plan adaptations, and optional OpenAI-backed
+weekly plan generation with deterministic fallback behavior.
+
+The main agent architecture is split by responsibility:
+
+- `src/gym_trainer/agent/graph.py`: graph orchestration only.
+- `src/gym_trainer/agent/reasoning.py`: routing, follow-ups, and tool choice.
+- `src/gym_trainer/agent/tools.py`: side-effecting tool implementations.
+- `src/gym_trainer/agent/persistence.py`: graph persistence boundary.
+- `src/gym_trainer/agent/responses.py`: user-facing response formatting.
+- `src/gym_trainer/agent/prompts.py`: reusable LLM prompt contracts.
 
 ## Local setup
 
